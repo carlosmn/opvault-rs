@@ -20,6 +20,8 @@ use openssl::hash;
 mod opdata01;
 pub use opdata01::OpdataError;
 
+mod folder;
+
 #[derive(Debug)]
 pub enum Error {
     IoError(io::Error),
@@ -28,6 +30,7 @@ pub enum Error {
     FromBase64(FromBase64Error),
     OpdataError(OpdataError),
     OpenSSL(ErrorStack),
+    FromUtf8Error(std::string::FromUtf8Error)
 }
 
 impl convert::From<io::Error> for Error {
@@ -57,6 +60,12 @@ impl convert::From<FromBase64Error> for Error {
 impl convert::From<OpdataError> for Error {
     fn from(e: OpdataError) -> Self {
         Error::OpdataError(e)
+    }
+}
+
+impl convert::From<std::string::FromUtf8Error> for Error {
+    fn from(e: std::string::FromUtf8Error) -> Self {
+        Error::FromUtf8Error(e)
     }
 }
 
@@ -161,6 +170,8 @@ mod tests {
     fn read_profile() {
         use std::path::Path;
 
-        let _profile = super::read_profile(Path::new("onepassword_data/default/profile.js"), Some("freddy".as_bytes())).unwrap();
+        let profile = super::read_profile(Path::new("onepassword_data/default/profile.js"), Some("freddy".as_bytes())).unwrap();
+        let folders = super::folder::read_folders(Path::new("onepassword_data/default/folders.js"), profile.overview_key.as_ref().unwrap());
+        println!("folders {:?}", folders);
     }
 }
