@@ -1,0 +1,9 @@
+[package]
+name = "opvault"
+version = "0.1.0"
+authors = ["Carlos Martín Nieto <cmn@dwim.me>"]
+
+[dependencies]
+rustc-serialize = "0.3"
+openssl = "0.9"
+byteorder = "0.5"
