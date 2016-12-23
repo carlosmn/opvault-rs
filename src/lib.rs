@@ -31,7 +31,8 @@ pub enum Error {
     FromBase64(FromBase64Error),
     OpdataError(OpdataError),
     OpenSSL(ErrorStack),
-    FromUtf8Error(std::string::FromUtf8Error)
+    FromUtf8Error(std::string::FromUtf8Error),
+    ItemError,
 }
 
 impl convert::From<io::Error> for Error {
