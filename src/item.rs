@@ -92,15 +92,6 @@ pub struct Item {
     pub fave: Option<i64>,
 }
 
-pub struct ItemDetail {
-    pub category: Category,
-    pub created: i64,
-    pub folder: Option<String>,
-    pub updated: i64,
-    pub uuid: String,
-    pub fave: Option<i64>,
-}
-
 impl Item {
     fn from_item_data(d: ItemData) -> Result<Item> {
         Ok(Item {
