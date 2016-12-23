@@ -21,6 +21,7 @@ mod opdata01;
 pub use opdata01::OpdataError;
 
 mod folder;
+mod item;
 
 #[derive(Debug)]
 pub enum Error {
@@ -171,7 +172,8 @@ mod tests {
         use std::path::Path;
 
         let profile = super::read_profile(Path::new("onepassword_data/default/profile.js"), Some("freddy".as_bytes())).unwrap();
-        let folders = super::folder::read_folders(Path::new("onepassword_data/default/folders.js"), profile.overview_key.as_ref().unwrap());
-        println!("folders {:?}", folders);
+        let _folders = super::folder::read_folders(Path::new("onepassword_data/default/folders.js"), profile.overview_key.as_ref().unwrap());
+        let _items = super::item::read_items(Path::new("onepassword_data/default")).unwrap();
+        println!("_items.len() {}", _items.len());
     }
 }
