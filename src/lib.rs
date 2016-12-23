@@ -152,12 +152,8 @@ fn derive_key(data: &[u8], decrypt_key: &[u8], hmac_key: &[u8]) -> Result<Derive
     let mut encrypt = [0u8; 32];
     let mut hmac = [0u8; 32];
 
-    for i in 0..32 {
-        encrypt[i] = hashed[i];
-    }
-    for i in 0..32 {
-        hmac[i] = hashed[32+i];
-    }
+    encrypt.clone_from_slice(&hashed[..32]);
+    hmac.clone_from_slice(&hashed[32..]);
 
     Ok(DerivedKey {
         encrypt: encrypt,
