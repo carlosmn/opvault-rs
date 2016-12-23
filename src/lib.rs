@@ -170,10 +170,8 @@ mod tests {
 
         let profile = super::read_profile(Path::new("onepassword_data/default/profile.js"), Some("freddy".as_bytes())).unwrap();
         let _folders = super::folder::read_folders(Path::new("onepassword_data/default/folders.js"), profile.overview_key.as_ref().unwrap());
-        let _items = super::item::read_items(Path::new("onepassword_data/default")).unwrap();
-        println!("_items.len() {}", _items.len());
-        let decrypted = _items["5ADFF73C09004C448D45565BC4750DE2"].decrypt_detail(profile.master_key.as_ref().unwrap()).unwrap();
-        println!("decrypted {:?}", decrypted);
-
+        let items = super::item::read_items(Path::new("onepassword_data/default")).unwrap();
+        let _decrypted = items["5ADFF73C09004C448D45565BC4750DE2"].decrypt_detail(profile.master_key.as_ref().unwrap()).unwrap();
+        let _overview = items["5ADFF73C09004C448D45565BC4750DE2"].decrypt_overview(profile.overview_key.as_ref().unwrap()).expect("overview");
     }
 }

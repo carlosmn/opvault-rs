@@ -123,6 +123,14 @@ impl Item {
             Err(e) => Err(From::from(e)),
         }
     }
+
+    /// decrypt the item's overview given the overview encryption and hmac keys.
+    pub fn decrypt_overview(&self, key: &DerivedKey) -> Result<Vec<u8>> {
+        match opdata01::decrypt(&self.o[..], &key.encrypt, &key.hmac) {
+            Ok(x) => Ok(x),
+            Err(e) => Err(From::from(e)),
+        }
+    }
 }
 
 static BANDS: &'static [u8; 16] = b"0123456789ABCDEF";
