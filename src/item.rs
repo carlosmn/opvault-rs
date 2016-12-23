@@ -8,10 +8,12 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::result;
 
-use super::{Result, Error};
+use super::opdata01::{verify_data, decrypt_data};
+use super::opdata01;
+use super::{Result, Error, DerivedKey};
 
 /// These are the kinds of items that 1password knows about
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Category {
     Login,
     CreditCard,
@@ -90,6 +92,15 @@ pub struct Item {
     pub fave: Option<i64>,
 }
 
+pub struct ItemDetail {
+    pub category: Category,
+    pub created: i64,
+    pub folder: Option<String>,
+    pub updated: i64,
+    pub uuid: String,
+    pub fave: Option<i64>,
+}
+
 impl Item {
     fn from_item_data(d: ItemData) -> Result<Item> {
         Ok(Item {
@@ -105,6 +116,21 @@ impl Item {
             uuid: d.uuid,
             fave: d.fave,
         })
+    }
+
+    /// decrypt this item's details given the master encryption and hmac keys.
+    pub fn decrypt_detail(&self, key: &DerivedKey) -> Result<Vec<u8>> {
+        if !try!(verify_data(&self.k[..], &key.hmac)) {
+            return Err(Error::ItemError);
+        }
+
+        let iv = &self.k[..16];
+        let keys = try!(decrypt_data(&self.k[16..], &key.encrypt, iv));
+
+        match opdata01::decrypt(&self.d[..], &keys[..32], &keys[32..64]) {
+            Ok(x) => Ok(x),
+            Err(e) => Err(From::from(e)),
+        }
     }
 }
 
