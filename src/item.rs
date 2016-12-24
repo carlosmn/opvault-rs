@@ -8,11 +8,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::result;
 
-use openssl::pkey::PKey;
-use openssl::sign;
-use openssl::hash::MessageDigest;
-
-use super::opdata01::{verify_data, decrypt_data};
+use super::crypto::{verify_data, decrypt_data, hmac};
 use super::opdata01;
 use super::{Result, Error, DerivedKey, HmacKey};
 
@@ -98,29 +94,28 @@ macro_rules! update {
 impl ItemData {
     /// Create from the json structure, verifying the integrity of the data given the master hmac key
     fn verify(&self, key: &HmacKey) -> Result<bool> {
-        let pkey = try!(PKey::hmac(key));
-        let mut signer = try!(sign::Signer::new(MessageDigest::sha256(), &pkey));
-
-        // This is far from optimal, but we need idents and strings here so any
-        // option is bound to lead to some duplication.
-        update!(signer, "category", self.category);
-        update!(signer, "created", self.created);
-        update!(signer, "d", self.d);
-        update!(option, signer, "fave", self.fave);
-        update!(option, signer, "folder", self.folder);
-        update!(signer, "k", self.k);
-        update!(signer, "o", self.o);
-        // Although this is boolean in the JSON, the HMAC is calculated with
-        // this as an integer.
-        update!(option, signer, "trashed", self.trashed.map(|x| x as i32));
-        update!(signer, "tx", self.tx);
-        update!(signer, "updated", self.updated);
-        update!(signer, "uuid", self.uuid);
+        let actual_hmac = try!(hmac(key, |signer| {
+            // This is far from optimal, but we need idents and strings here so any
+            // option is bound to lead to some duplication.
+            update!(signer, "category", self.category);
+            update!(signer, "created", self.created);
+            update!(signer, "d", self.d);
+            update!(option, signer, "fave", self.fave);
+            update!(option, signer, "folder", self.folder);
+            update!(signer, "k", self.k);
+            update!(signer, "o", self.o);
+            // Although this is boolean in the JSON, the HMAC is calculated with
+            // this as an integer.
+            update!(option, signer, "trashed", self.trashed.map(|x| x as i32));
+            update!(signer, "tx", self.tx);
+            update!(signer, "updated", self.updated);
+            update!(signer, "uuid", self.uuid);
+            Ok(())
+        }));
 
         let expected_hmac = try!(self.hmac.from_base64());
-        let hmac = try!(signer.finish());
 
-        Ok(expected_hmac == hmac)
+        Ok(expected_hmac == actual_hmac)
     }
 }
 

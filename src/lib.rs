@@ -12,16 +12,12 @@ use std::convert;
 use rustc_serialize::base64::{FromBase64, FromBase64Error};
 use rustc_serialize::json;
 
-use openssl::error::ErrorStack;
-use openssl::pkcs5::pbkdf2_hmac;
-use openssl::hash::MessageDigest;
-use openssl::hash;
-
 mod opdata01;
 pub use opdata01::OpdataError;
 
 mod folder;
 mod item;
+mod crypto;
 
 #[derive(Debug)]
 pub enum Error {
@@ -30,7 +26,7 @@ pub enum Error {
     JsonDecoder(json::DecoderError),
     FromBase64(FromBase64Error),
     OpdataError(OpdataError),
-    OpenSSL(ErrorStack),
+    Crypto(crypto::Error),
     FromUtf8Error(std::string::FromUtf8Error),
     ItemError,
 }
@@ -68,12 +64,6 @@ impl convert::From<OpdataError> for Error {
 impl convert::From<std::string::FromUtf8Error> for Error {
     fn from(e: std::string::FromUtf8Error) -> Self {
         Error::FromUtf8Error(e)
-    }
-}
-
-impl From<ErrorStack> for Error {
-    fn from(e: ErrorStack) -> Self {
-        Error::OpenSSL(e)
     }
 }
 
@@ -125,8 +115,8 @@ pub fn read_profile(p: &Path, password: Option<&[u8]>) -> Result<Profile> {
     // Derive the password and hmac keys if given
     let (master_key, overview_key) =
         if let Some(pw) = password {
-            let mut pw_derived = [0u8; 64];
-            pbkdf2_hmac(pw, try!(profile_data.salt.from_base64()).as_slice(), profile_data.iterations as usize, MessageDigest::sha512(), &mut pw_derived).unwrap();
+            let salt = try!(profile_data.salt.from_base64());
+            let pw_derived = try!(crypto::pbkdf2(pw, &salt[..], profile_data.iterations as usize));
             let decrypt_key = &pw_derived[..32];
             let hmac_key = &pw_derived[32..];
 
@@ -151,7 +141,8 @@ pub fn read_profile(p: &Path, password: Option<&[u8]>) -> Result<Profile> {
 /// Derive a key from its opdata01-encoded source
 fn derive_key(data: &[u8], decrypt_key: &[u8], hmac_key: &[u8]) -> Result<DerivedKey> {
     let key_plain = try!(opdata01::decrypt(data, decrypt_key, hmac_key));
-    let hashed = try!(hash::hash(MessageDigest::sha512(), key_plain.as_slice()));
+    let hashed = try!(crypto::hash_sha512(key_plain.as_slice()));
+    //let hashed = try!(hash::hash(MessageDigest::sha512(), key_plain.as_slice()));
 
     let mut encrypt = [0u8; 32];
     let mut hmac = [0u8; 32];

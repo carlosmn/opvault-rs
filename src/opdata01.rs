@@ -4,10 +4,8 @@ use std::convert::From;
 
 use super::Result;
 use byteorder::{LittleEndian, ReadBytesExt};
-use openssl::symm;
-use openssl::pkey::PKey;
-use openssl::sign;
-use openssl::hash::MessageDigest;
+
+use crypto::{verify_data, decrypt_data};
 
 /// The header for this kind of data
 static OPDATA_STR: &'static [u8; 8] = b"opdata01";
@@ -43,26 +41,4 @@ pub fn decrypt(data: &[u8], decrypt_key: &[u8], mac_key: &[u8]) -> Result<Vec<u8
     let unpadded: Vec<u8> = decrypted[crypt_data.len()-(len as usize)..].into();
 
     Ok(unpadded)
-}
-
-pub fn verify_data(data: &[u8], hmac_key: &[u8]) -> Result<bool> {
-    let mac = &data[data.len() - 32..];
-    let pkey = try!(PKey::hmac(hmac_key));
-    let mut signer = try!(sign::Signer::new(MessageDigest::sha256(), &pkey));
-    try!(signer.update(&data[..data.len() - 32]));
-    let computed_hmac = try!(signer.finish());
-
-    Ok(computed_hmac.as_slice() == mac)
-}
-
-pub fn decrypt_data(data: &[u8], decrypt_key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-    let t = symm::Cipher::aes_256_cbc();
-    let mut crypter = try!(symm::Crypter::new(t, symm::Mode::Decrypt, decrypt_key, Some(iv)));
-    crypter.pad(false);
-    let mut decrypted = vec![0u8; data.len()+ t.block_size()];
-    let count = try!(crypter.update(data, &mut decrypted[..]));
-    let rest = try!(crypter.finalize(&mut decrypted[count..]));
-
-    decrypted.truncate(count + rest);
-    Ok(decrypted)
 }
