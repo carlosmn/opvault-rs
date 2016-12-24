@@ -8,6 +8,10 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::result;
 
+use openssl::pkey::PKey;
+use openssl::sign;
+use openssl::hash::MessageDigest;
+
 use super::opdata01::{verify_data, decrypt_data};
 use super::opdata01;
 use super::{Result, Error, DerivedKey};
@@ -67,14 +71,57 @@ struct ItemData {
     category: String,
     created: i64,
     d: String,
+    fave: Option<i64>,
     folder: Option<String>,
     hmac: String,
     k: String,
     o: String,
+    trashed: Option<bool>,
     tx: i64,
     updated: i64,
     uuid: String,
-    fave: Option<i64>,
+}
+
+macro_rules! update {
+    ($s: expr, $name:expr, $field:expr) => {
+        try!($s.update($name.as_bytes()));
+        try!($s.update($field.to_string().as_bytes()));
+    };
+    (option, $s: expr, $name:expr, $field:expr) => {
+        if let Some(ref x) = $field {
+            try!($s.update($name.as_bytes()));
+            try!($s.update(x.to_string().as_bytes()));
+        }
+    };
+}
+
+impl ItemData {
+    /// Create from the json structure, verifying the integrity of the data given the master hmac key
+    fn verify(&self, key: &[u8]) -> Result<bool> {
+        let pkey = try!(PKey::hmac(key));
+        let mut signer = try!(sign::Signer::new(MessageDigest::sha256(), &pkey));
+
+        // This is far from optimal, but we need idents and strings here so any
+        // option is bound to lead to some duplication.
+        update!(signer, "category", self.category);
+        update!(signer, "created", self.created);
+        update!(signer, "d", self.d);
+        update!(option, signer, "fave", self.fave);
+        update!(option, signer, "folder", self.folder);
+        update!(signer, "k", self.k);
+        update!(signer, "o", self.o);
+        // Although this is boolean in the JSON, the HMAC is calculated with
+        // this as an integer.
+        update!(option, signer, "trashed", self.trashed.map(|x| x as i32));
+        update!(signer, "tx", self.tx);
+        update!(signer, "updated", self.updated);
+        update!(signer, "uuid", self.uuid);
+
+        let expected_hmac = try!(self.hmac.from_base64());
+        let hmac = try!(signer.finish());
+
+        Ok(expected_hmac == hmac)
+    }
 }
 
 #[derive(Debug)]
@@ -93,7 +140,11 @@ pub struct Item {
 }
 
 impl Item {
-    fn from_item_data(d: ItemData) -> Result<Item> {
+    fn from_item_data(d: ItemData, key: &[u8]) -> Result<Item> {
+        if !try!(d.verify(key)) {
+            return Err(Error::ItemError);
+        }
+
         Ok(Item {
             category: try!(Category::from_str(&d.category)),
             created: d.created,
@@ -136,19 +187,19 @@ impl Item {
 static BANDS: &'static [u8; 16] = b"0123456789ABCDEF";
 
 // Load the items given the containing path
-pub fn read_items(p: &Path) -> Result<HashMap<String, Item>> {
+pub fn read_items(p: &Path, key: &[u8]) -> Result<HashMap<String, Item>> {
     let mut map = HashMap::new();
     for x in BANDS.iter() {
         let name = format!("band_{}.js", *x as char);
         let path = p.join(name);
-        let items = try!(read_band(&path));
+        let items = try!(read_band(&path, key));
         map.extend(items);
     }
 
     Ok(map)
 }
 
-fn read_band(p: &Path) -> Result<HashMap<String, Item>> {
+fn read_band(p: &Path, key: &[u8]) -> Result<HashMap<String, Item>> {
     let mut f = match File::open(p) {
         Err(ref e) if e.kind() == ErrorKind::NotFound => return Ok(HashMap::new()),
         Err(e) => return Err(From::from(e)),
@@ -161,7 +212,7 @@ fn read_band(p: &Path) -> Result<HashMap<String, Item>> {
     let mut items: HashMap<String, ItemData> = try!(json::decode(json_str));
     let mut map = HashMap::new();
     for (k, v) in items.drain() {
-        map.insert(k, try!(Item::from_item_data(v)));
+        map.insert(k, try!(Item::from_item_data(v, key)));
     }
 
     Ok(map)
