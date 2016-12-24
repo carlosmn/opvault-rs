@@ -104,9 +104,12 @@ pub struct Profile {
     pub overview_key: Option<DerivedKey>,
 }
 
+pub type EncryptionKey = [u8; 32];
+pub type HmacKey = [u8; 32];
+
 pub struct DerivedKey {
-    pub encrypt: [u8; 32],
-    pub hmac: [u8; 32],
+    pub encrypt: EncryptionKey,
+    pub hmac: HmacKey,
 }
 
 // Read in the profile. If the user's master password is given, we also decrypt the master and overview keys

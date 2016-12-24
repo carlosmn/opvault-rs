@@ -14,7 +14,7 @@ use openssl::hash::MessageDigest;
 
 use super::opdata01::{verify_data, decrypt_data};
 use super::opdata01;
-use super::{Result, Error, DerivedKey};
+use super::{Result, Error, DerivedKey, HmacKey};
 
 /// These are the kinds of items that 1password knows about
 #[derive(Debug, Copy, Clone)]
@@ -97,7 +97,7 @@ macro_rules! update {
 
 impl ItemData {
     /// Create from the json structure, verifying the integrity of the data given the master hmac key
-    fn verify(&self, key: &[u8]) -> Result<bool> {
+    fn verify(&self, key: &HmacKey) -> Result<bool> {
         let pkey = try!(PKey::hmac(key));
         let mut signer = try!(sign::Signer::new(MessageDigest::sha256(), &pkey));
 
@@ -140,7 +140,7 @@ pub struct Item {
 }
 
 impl Item {
-    fn from_item_data(d: ItemData, key: &[u8]) -> Result<Item> {
+    fn from_item_data(d: ItemData, key: &HmacKey) -> Result<Item> {
         if !try!(d.verify(key)) {
             return Err(Error::ItemError);
         }
@@ -187,7 +187,7 @@ impl Item {
 static BANDS: &'static [u8; 16] = b"0123456789ABCDEF";
 
 // Load the items given the containing path
-pub fn read_items(p: &Path, key: &[u8]) -> Result<HashMap<String, Item>> {
+pub fn read_items(p: &Path, key: &HmacKey) -> Result<HashMap<String, Item>> {
     let mut map = HashMap::new();
     for x in BANDS.iter() {
         let name = format!("band_{}.js", *x as char);
@@ -199,7 +199,7 @@ pub fn read_items(p: &Path, key: &[u8]) -> Result<HashMap<String, Item>> {
     Ok(map)
 }
 
-fn read_band(p: &Path, key: &[u8]) -> Result<HashMap<String, Item>> {
+fn read_band(p: &Path, key: &HmacKey) -> Result<HashMap<String, Item>> {
     let mut f = match File::open(p) {
         Err(ref e) if e.kind() == ErrorKind::NotFound => return Ok(HashMap::new()),
         Err(e) => return Err(From::from(e)),
