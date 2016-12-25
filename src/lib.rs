@@ -1,6 +1,7 @@
 extern crate rustc_serialize;
 extern crate openssl;
 extern crate byteorder;
+extern crate uuid;
 
 use std::io;
 use std::result;
@@ -8,6 +9,8 @@ use std::convert;
 
 use rustc_serialize::base64::FromBase64Error;
 use rustc_serialize::json;
+
+pub use uuid::Uuid;
 
 mod opdata01;
 pub use opdata01::OpdataError;
@@ -33,6 +36,7 @@ pub enum Error {
     Crypto(crypto::Error),
     FromUtf8Error(std::string::FromUtf8Error),
     ItemError,
+    UuidError(uuid::ParseError),
 }
 
 impl convert::From<io::Error> for Error {
@@ -68,6 +72,12 @@ impl convert::From<OpdataError> for Error {
 impl convert::From<std::string::FromUtf8Error> for Error {
     fn from(e: std::string::FromUtf8Error) -> Self {
         Error::FromUtf8Error(e)
+    }
+}
+
+impl convert::From<uuid::ParseError> for Error {
+    fn from(e: uuid::ParseError) -> Self {
+        Error::UuidError(e)
     }
 }
 

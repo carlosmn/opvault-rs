@@ -7,3 +7,4 @@ authors = ["Carlos Martín Nieto <cmn@dwim.me>"]
 rustc-serialize = "0.3"
 openssl = "0.9"
 byteorder = "0.5"
+uuid = { version = "0.3", features = ["use_std", "rustc-serialize"] }

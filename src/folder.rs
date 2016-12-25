@@ -6,8 +6,7 @@ use std::io::prelude::*;
 use std::collections::HashMap;
 
 use super::opdata01;
-use super::Result;
-use super::DerivedKey;
+use super::{Result, DerivedKey, Uuid};
 
 #[derive(Debug, RustcDecodable)]
 pub struct FolderData {
@@ -15,7 +14,7 @@ pub struct FolderData {
     pub overview: String,
     pub tx: i64,
     pub updated: i64,
-    pub uuid: String,
+    pub uuid: Uuid,
     pub smart: Option<bool>,
 }
 
@@ -25,7 +24,7 @@ pub struct Folder {
     pub overview: Vec<u8>,
     pub tx: i64,
     pub updated: i64,
-    pub uuid: String,
+    pub uuid: Uuid,
     pub smart: Option<bool>,
 }
 

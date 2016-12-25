@@ -10,7 +10,7 @@ use std::result;
 
 use super::crypto::{verify_data, decrypt_data, hmac};
 use super::opdata01;
-use super::{Result, Error, DerivedKey, HmacKey};
+use super::{Result, Error, DerivedKey, HmacKey, Uuid};
 
 /// These are the kinds of items that 1password knows about
 #[derive(Debug, Copy, Clone)]
@@ -124,13 +124,13 @@ pub struct Item {
     pub category: Category,
     pub created: i64,
     pub d: Vec<u8>,
-    pub folder: Option<String>,
+    pub folder: Option<Uuid>,
     pub hmac: Vec<u8>,
     pub k: Vec<u8>,
     pub o: Vec<u8>,
     pub tx: i64,
     pub updated: i64,
-    pub uuid: String,
+    pub uuid: Uuid,
     pub fave: Option<i64>,
 }
 
@@ -140,17 +140,24 @@ impl Item {
             return Err(Error::ItemError);
         }
 
+        let uuid = try!(Uuid::parse_str(&d.uuid));
+        let folder_uuid = if let Some(id) = d.folder {
+            Some(try!(Uuid::parse_str(&id)))
+        } else {
+            None
+        };
+
         Ok(Item {
             category: try!(Category::from_str(&d.category)),
             created: d.created,
             d: try!(d.d.from_base64()),
-            folder: d.folder,
+            folder: folder_uuid,
             hmac: try!(d.hmac.from_base64()),
             k: try!(d.k.from_base64()),
             o: try!(d.o.from_base64()),
             tx: d.tx,
             updated: d.updated,
-            uuid: d.uuid,
+            uuid: uuid,
             fave: d.fave,
         })
     }
