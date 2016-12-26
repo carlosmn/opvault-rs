@@ -1,3 +1,10 @@
+// Copyright 2016 opvault-rs Developers
+//
+// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
+// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
+// http://opensource.org/licenses/MIT>, at your option. This file may not be
+// copied, modified, or distributed except according to those terms.
+
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
@@ -5,10 +12,7 @@ use super::Result;
 use super::{Profile, Folder, Item, HmacKey};
 use super::{folder, profile, item};
 
-/// An OPVault, which can be encrypted (sealed) or decrypted once the passphrase
-/// is provided.
-
-/// This represents a vault under a particular profile.
+/// This represents a vault for a particular profile.
 #[derive(Debug)]
 pub struct Vault {
     base: PathBuf,

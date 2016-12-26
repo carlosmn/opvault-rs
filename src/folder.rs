@@ -1,3 +1,10 @@
+// Copyright 2016 opvault-rs Developers
+//
+// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
+// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
+// http://opensource.org/licenses/MIT>, at your option. This file may not be
+// copied, modified, or distributed except according to those terms.
+
 use rustc_serialize::json;
 use rustc_serialize::base64::FromBase64;
 use std::path::Path;
@@ -18,6 +25,7 @@ pub struct FolderData {
     pub smart: Option<bool>,
 }
 
+/// A "folder" or named group of items.
 #[derive(Debug)]
 pub struct Folder {
     pub created: i64,
