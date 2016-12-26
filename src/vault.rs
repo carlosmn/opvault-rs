@@ -9,8 +9,8 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
 use super::Result;
-use super::{Profile, Folder, Item, HmacKey, Uuid};
-use super::{folder, profile, item};
+use super::{Profile, Folder, Item, HmacKey, Uuid, Attachment};
+use super::{folder, profile, item, attachment};
 
 /// This represents a vault for a particular profile.
 #[derive(Debug)]
@@ -23,6 +23,8 @@ pub struct Vault {
     pub folders: HashMap<Uuid, Folder>,
     /// The items in this vault.
     pub items: Option<HashMap<Uuid, Item>>,
+    /// The attachments in this vault
+    attachments: HashMap<Uuid, Attachment>,
 }
 
 impl Vault {
@@ -32,19 +34,21 @@ impl Vault {
         let base = p.join("default");
         let folders = try!(folder::read_folders(&base.join("folders.js")));
         let profile = try!(profile::read_profile(&base.join("profile.js")));
+        let attachments = try!(attachment::read_attachments(&base));
 
         Ok(Vault {
             base: base,
             profile: profile,
             folders: folders,
             items: None,
+            attachments: attachments,
         })
     }
 
     /// Read the items vault into memory. The master HMAC key is used to check
     /// the integrity of the item data.
     pub fn read_items(&mut self, key: &HmacKey) -> Result<()> {
-        let items = try!(item::read_items(&self.base, key));
+        let items = try!(item::read_items(&self.base, &mut self.attachments, key));
         self.items = Some(items);
         Ok(())
     }

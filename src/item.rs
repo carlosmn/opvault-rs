@@ -17,7 +17,7 @@ use std::result;
 
 use super::crypto::{verify_data, decrypt_data, hmac};
 use super::opdata01;
-use super::{Result, Error, DerivedKey, HmacKey, Uuid};
+use super::{Result, Error, DerivedKey, HmacKey, Uuid, Attachment};
 
 /// These are the kinds of items that 1password knows about
 #[derive(Debug, Copy, Clone)]
@@ -140,10 +140,11 @@ pub struct Item {
     pub updated: i64,
     pub uuid: Uuid,
     pub fave: Option<i64>,
+    pub attachments: HashMap<Uuid, Attachment>,
 }
 
 impl Item {
-    fn from_item_data(d: ItemData, key: &HmacKey) -> Result<Item> {
+    fn from_item_data(d: ItemData, atts: &mut HashMap<Uuid, Attachment>, key: &HmacKey) -> Result<Item> {
         if !try!(d.verify(key)) {
             return Err(Error::ItemError);
         }
@@ -154,6 +155,12 @@ impl Item {
         } else {
             None
         };
+
+        let wanted: Vec<Uuid> = atts.iter().filter(|&(_, ref a)| a.item == uuid).map(|(k, _)| *k).collect();
+        let mut attachments = HashMap::new();
+        for k in wanted {
+            attachments.insert(k, atts.remove(&k).unwrap());
+        }
 
         Ok(Item {
             category: try!(Category::from_str(&d.category)),
@@ -167,19 +174,14 @@ impl Item {
             updated: d.updated,
             uuid: uuid,
             fave: d.fave,
+            attachments: attachments,
         })
     }
 
     /// decrypt this item's details given the master encryption and hmac keys.
     pub fn decrypt_detail(&self, key: &DerivedKey) -> Result<Vec<u8>> {
-        if !try!(verify_data(&self.k[..], &key.hmac)) {
-            return Err(Error::ItemError);
-        }
-
-        let iv = &self.k[..16];
-        let keys = try!(decrypt_data(&self.k[16..], &key.encrypt, iv));
-
-        match opdata01::decrypt(&self.d[..], &keys[..32], &keys[32..64]) {
+        let keys = try!(self.item_key(key));
+        match opdata01::decrypt(&self.d[..], &keys.encrypt, &keys.hmac) {
             Ok(x) => Ok(x),
             Err(e) => Err(From::from(e)),
         }
@@ -192,24 +194,44 @@ impl Item {
             Err(e) => Err(From::from(e)),
         }
     }
+
+    pub fn item_key(&self, key: &DerivedKey) -> Result<DerivedKey> {
+        if !try!(verify_data(&self.k[..], &key.hmac)) {
+            return Err(Error::ItemError);
+        }
+
+        let iv = &self.k[..16];
+        let keys = try!(decrypt_data(&self.k[16..], &key.encrypt, iv));
+
+        let mut encrypt = [0u8; 32];
+        let mut hmac = [0u8; 32];
+
+        encrypt.clone_from_slice(&keys[..32]);
+        hmac.clone_from_slice(&keys[32..64]);
+
+        Ok(DerivedKey {
+            encrypt: encrypt,
+            hmac: hmac,
+        })
+    }
 }
 
 static BANDS: &'static [u8; 16] = b"0123456789ABCDEF";
 
 // Load the items given the containing path
-pub fn read_items(p: &Path, key: &HmacKey) -> Result<HashMap<Uuid, Item>> {
+pub fn read_items(p: &Path, atts: &mut HashMap<Uuid, Attachment>, key: &HmacKey) -> Result<HashMap<Uuid, Item>> {
     let mut map = HashMap::new();
     for x in BANDS.iter() {
         let name = format!("band_{}.js", *x as char);
         let path = p.join(name);
-        let items = try!(read_band(&path, key));
+        let items = try!(read_band(&path, atts, key));
         map.extend(items);
     }
 
     Ok(map)
 }
 
-fn read_band(p: &Path, key: &HmacKey) -> Result<HashMap<Uuid, Item>> {
+fn read_band(p: &Path, atts: &mut HashMap<Uuid, Attachment>, key: &HmacKey) -> Result<HashMap<Uuid, Item>> {
     let mut f = match File::open(p) {
         Err(ref e) if e.kind() == ErrorKind::NotFound => return Ok(HashMap::new()),
         Err(e) => return Err(From::from(e)),
@@ -222,7 +244,7 @@ fn read_band(p: &Path, key: &HmacKey) -> Result<HashMap<Uuid, Item>> {
     let mut items: HashMap<Uuid, ItemData> = try!(json::decode(json_str));
     let mut map = HashMap::new();
     for (k, v) in items.drain() {
-        map.insert(k, try!(Item::from_item_data(v, key)));
+        map.insert(k, try!(Item::from_item_data(v, atts, key)));
     }
 
     Ok(map)

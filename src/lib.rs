@@ -32,11 +32,14 @@ mod folder;
 mod item;
 mod crypto;
 mod vault;
+mod attachment;
+mod opcldat;
 
 pub use profile::Profile;
 pub use item::Item;
 pub use folder::Folder;
 pub use vault::Vault;
+pub use attachment::Attachment;
 
 #[derive(Debug)]
 pub enum Error {
@@ -47,6 +50,7 @@ pub enum Error {
     Crypto(crypto::Error),
     ItemError,
     UuidError(uuid::ParseError),
+    OpcldatError,
 }
 
 impl convert::From<io::Error> for Error {
@@ -95,7 +99,7 @@ mod tests {
     #[test]
     fn read_vault() {
         use std::path::Path;
-        use super::Vault;
+        use super::{Vault, Uuid};
 
         let mut vault = Vault::new(Path::new("onepassword_data")).expect("vault");
         assert_eq!(3, vault.folders.len());
@@ -104,7 +108,16 @@ mod tests {
         vault.read_items(&overview.hmac).expect("read_items");
         assert_eq!(29, vault.items.as_ref().expect("items").len());
 
-        let _decrypted = vault.items.as_ref().expect("items")["5ADFF73C09004C448D45565BC4750DE2"].decrypt_detail(&master).expect("item");
-        let _overview = vault.items.as_ref().expect("items")["5ADFF73C09004C448D45565BC4750DE2"].decrypt_overview(&overview).expect("item");
+        let item_uuid = Uuid::parse_str("5ADFF73C09004C448D45565BC4750DE2").expect("uuid");
+        let _decrypted = vault.items.as_ref().expect("items")[&item_uuid].decrypt_detail(&master).expect("item");
+        let _overview = vault.items.as_ref().expect("items")[&item_uuid].decrypt_overview(&overview).expect("item");
+
+        for (_, _item) in vault.items.expect("items") {
+            let item_key = _item.item_key(&master).expect("item keys");
+            for (_, _att) in _item.attachments {
+                let _icon = _att.decrypt_icon(&item_key).expect("decrypt icon");
+                let _content = _att.decrypt_content(&item_key).expect("decrypt content");
+            }
+        }
     }
 }
