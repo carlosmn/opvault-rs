@@ -41,12 +41,10 @@ pub use vault::Vault;
 #[derive(Debug)]
 pub enum Error {
     IoError(io::Error),
-    Json(json::ParserError),
     JsonDecoder(json::DecoderError),
     FromBase64(FromBase64Error),
     OpdataError(OpdataError),
     Crypto(crypto::Error),
-    FromUtf8Error(std::string::FromUtf8Error),
     ItemError,
     UuidError(uuid::ParseError),
 }
@@ -54,12 +52,6 @@ pub enum Error {
 impl convert::From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::IoError(e)
-    }
-}
-
-impl convert::From<json::ParserError> for Error {
-    fn from(e: json::ParserError) -> Self {
-        Error::Json(e)
     }
 }
 
@@ -78,12 +70,6 @@ impl convert::From<FromBase64Error> for Error {
 impl convert::From<OpdataError> for Error {
     fn from(e: OpdataError) -> Self {
         Error::OpdataError(e)
-    }
-}
-
-impl convert::From<std::string::FromUtf8Error> for Error {
-    fn from(e: std::string::FromUtf8Error) -> Self {
-        Error::FromUtf8Error(e)
     }
 }
 
