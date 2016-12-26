@@ -59,14 +59,14 @@ impl Folder {
 }
 
 /// Read the encrypted folder data
-pub fn read_folders(p: &Path) -> Result<HashMap<String, Folder>> {
+pub fn read_folders(p: &Path) -> Result<HashMap<Uuid, Folder>> {
     let mut f = try!(File::open(p));
     let mut s = String::new();
     try!(f.read_to_string(&mut s));
     // the file looks like it's meant to be eval'ed by a JS engine, which sounds
     // like a particularly bad idea, let's remove the non-json bits.
     let json_str = s.trim_left_matches("loadFolders(").trim_right_matches(");");
-    let mut folder_datas: HashMap<String, FolderData> = try!(json::decode(json_str));
+    let mut folder_datas: HashMap<Uuid, FolderData> = try!(json::decode(json_str));
     let mut folders = HashMap::new();
 
     for (k, v) in folder_datas.drain() {

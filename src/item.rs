@@ -197,7 +197,7 @@ impl Item {
 static BANDS: &'static [u8; 16] = b"0123456789ABCDEF";
 
 // Load the items given the containing path
-pub fn read_items(p: &Path, key: &HmacKey) -> Result<HashMap<String, Item>> {
+pub fn read_items(p: &Path, key: &HmacKey) -> Result<HashMap<Uuid, Item>> {
     let mut map = HashMap::new();
     for x in BANDS.iter() {
         let name = format!("band_{}.js", *x as char);
@@ -209,7 +209,7 @@ pub fn read_items(p: &Path, key: &HmacKey) -> Result<HashMap<String, Item>> {
     Ok(map)
 }
 
-fn read_band(p: &Path, key: &HmacKey) -> Result<HashMap<String, Item>> {
+fn read_band(p: &Path, key: &HmacKey) -> Result<HashMap<Uuid, Item>> {
     let mut f = match File::open(p) {
         Err(ref e) if e.kind() == ErrorKind::NotFound => return Ok(HashMap::new()),
         Err(e) => return Err(From::from(e)),
@@ -219,7 +219,7 @@ fn read_band(p: &Path, key: &HmacKey) -> Result<HashMap<String, Item>> {
     try!(f.read_to_string(&mut s));
     let json_str = s.trim_left_matches("ld(").trim_right_matches(");");
 
-    let mut items: HashMap<String, ItemData> = try!(json::decode(json_str));
+    let mut items: HashMap<Uuid, ItemData> = try!(json::decode(json_str));
     let mut map = HashMap::new();
     for (k, v) in items.drain() {
         map.insert(k, try!(Item::from_item_data(v, key)));

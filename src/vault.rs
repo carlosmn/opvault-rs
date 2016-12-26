@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
 use super::Result;
-use super::{Profile, Folder, Item, HmacKey};
+use super::{Profile, Folder, Item, HmacKey, Uuid};
 use super::{folder, profile, item};
 
 /// This represents a vault for a particular profile.
@@ -19,10 +19,10 @@ pub struct Vault {
     /// The profile information, including the password hint and master and
     /// overview keys.
     pub profile: Profile,
-    /// The folders in this vault, keyed by UUID
-    pub folders: HashMap<String, Folder>,
+    /// The folders in this vault, keyed by their UUID
+    pub folders: HashMap<Uuid, Folder>,
     /// The items in this vault.
-    pub items: Option<HashMap<String, Item>>,
+    pub items: Option<HashMap<Uuid, Item>>,
 }
 
 impl Vault {
