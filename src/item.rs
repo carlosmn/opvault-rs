@@ -17,7 +17,7 @@ use std::result;
 
 use super::crypto::{verify_data, decrypt_data, hmac};
 use super::opdata01;
-use super::{Result, Error, DerivedKey, HmacKey, Uuid, Attachment};
+use super::{Result, Error, MasterKey, OverviewKey, ItemKey, HmacKey, Uuid, Attachment};
 
 /// These are the kinds of items that 1password knows about
 #[derive(Debug, Copy, Clone)]
@@ -179,40 +179,31 @@ impl Item {
     }
 
     /// decrypt this item's details given the master encryption and hmac keys.
-    pub fn decrypt_detail(&self, key: &DerivedKey) -> Result<Vec<u8>> {
+    pub fn decrypt_detail(&self, key: &MasterKey) -> Result<Vec<u8>> {
         let keys = try!(self.item_key(key));
-        match opdata01::decrypt(&self.d[..], &keys.encrypt, &keys.hmac) {
+        match opdata01::decrypt(&self.d[..], keys.encryption(), keys.verification()) {
             Ok(x) => Ok(x),
             Err(e) => Err(From::from(e)),
         }
     }
 
     /// decrypt the item's overview given the overview encryption and hmac keys.
-    pub fn decrypt_overview(&self, key: &DerivedKey) -> Result<Vec<u8>> {
-        match opdata01::decrypt(&self.o[..], &key.encrypt, &key.hmac) {
+    pub fn decrypt_overview(&self, key: &OverviewKey) -> Result<Vec<u8>> {
+        match opdata01::decrypt(&self.o[..], key.encryption(), key.verification()) {
             Ok(x) => Ok(x),
             Err(e) => Err(From::from(e)),
         }
     }
 
-    pub fn item_key(&self, key: &DerivedKey) -> Result<DerivedKey> {
-        if !try!(verify_data(&self.k[..], &key.hmac)) {
+    pub fn item_key(&self, key: &MasterKey) -> Result<ItemKey> {
+        if !try!(verify_data(&self.k[..], key.verification())) {
             return Err(Error::ItemError);
         }
 
         let iv = &self.k[..16];
-        let keys = try!(decrypt_data(&self.k[16..], &key.encrypt, iv));
+        let keys = try!(decrypt_data(&self.k[16..], key.encryption(), iv));
 
-        let mut encrypt = [0u8; 32];
-        let mut hmac = [0u8; 32];
-
-        encrypt.clone_from_slice(&keys[..32]);
-        hmac.clone_from_slice(&keys[32..64]);
-
-        Ok(DerivedKey {
-            encrypt: encrypt,
-            hmac: hmac,
-        })
+        Ok(keys.into())
     }
 }
 

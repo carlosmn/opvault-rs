@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use rustc_serialize::base64::FromBase64;
 use rustc_serialize::json;
 
-use super::{Result, Uuid, DerivedKey};
+use super::{Result, Uuid, OverviewKey, ItemKey};
 use super::{opcldat, opdata01};
 
 #[derive(Debug, RustcDecodable)]
@@ -61,12 +61,12 @@ impl Attachment {
     }
 
     /// Decrypt the attachment's overview data
-    pub fn decrypt_overview(&self, key: &DerivedKey) -> Result<Vec<u8>> {
-        opdata01::decrypt(&self.overview[..], &key.encrypt, &key.hmac)
+    pub fn decrypt_overview(&self, key: &OverviewKey) -> Result<Vec<u8>> {
+        opdata01::decrypt(&self.overview[..], key.encryption(), key.verification())
     }
 
     /// Decrypt the attachment's icon
-    pub fn decrypt_icon(&self, key: &DerivedKey) -> Result<Vec<u8>> {
+    pub fn decrypt_icon(&self, key: &ItemKey) -> Result<Vec<u8>> {
         // The content is just after the metadata, so we need to open the file
         // again and figure out where things are.
         let mut f = try!(fs::File::open(&self.path));
@@ -77,11 +77,11 @@ impl Attachment {
         let mut icon_data = vec![0u8; metadata.icon_size as usize];
         try!(f.seek(SeekFrom::Start(icon_offset as u64)));
         try!(f.read_exact(&mut icon_data));
-        opdata01::decrypt(&icon_data[..], &key.encrypt, &key.hmac)
+        opdata01::decrypt(&icon_data[..], key.encryption(), key.verification())
     }
 
     /// Decrypt the attachment's content
-    pub fn decrypt_content(&self, key: &DerivedKey) -> Result<Vec<u8>> {
+    pub fn decrypt_content(&self, key: &ItemKey) -> Result<Vec<u8>> {
         // The content is just after the metadata, so we need to open the file
         // again and figure out where things are.
         let mut f = try!(fs::File::open(&self.path));
@@ -92,7 +92,7 @@ impl Attachment {
         let mut content_data = Vec::new();
         try!(f.seek(SeekFrom::Start(content_offset as u64)));
         try!(f.read_to_end(&mut content_data));
-        opdata01::decrypt(&content_data[..], &key.encrypt, &key.hmac)
+        opdata01::decrypt(&content_data[..], key.encryption(), key.verification())
     }
 }
 

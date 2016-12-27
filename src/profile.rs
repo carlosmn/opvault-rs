@@ -12,7 +12,7 @@ use std::io::prelude::*;
 use rustc_serialize::base64::FromBase64;
 use rustc_serialize::json;
 
-use super::{Result, DerivedKey};
+use super::{Result, Key, MasterKey, OverviewKey};
 use super::{crypto, opdata01};
 
 /// The profile data from the file, the names match the keys in the file.
@@ -71,7 +71,7 @@ impl Profile {
     /// Decrypt and derive the master and overview keys given the user's master
     /// password. The master keys can be used to retrieve item details and the
     /// overview keys decrypt item and folder overview data.
-    pub fn decrypt_keys(&self, password: &[u8]) -> Result<(DerivedKey, DerivedKey)> {
+    pub fn decrypt_keys(&self, password: &[u8]) -> Result<(MasterKey, OverviewKey)> {
         let key = try!(crypto::pbkdf2(password, &self.salt[..], self.iterations as usize));
         let decrypt_key = &key[..32];
         let hmac_key = &key[32..];
@@ -84,20 +84,11 @@ impl Profile {
 }
 
 /// Derive a key from its opdata01-encoded source
-fn derive_key(data: &[u8], decrypt_key: &[u8], hmac_key: &[u8]) -> Result<DerivedKey> {
+fn derive_key(data: &[u8], decrypt_key: &[u8], hmac_key: &[u8]) -> Result<Key> {
     let key_plain = try!(opdata01::decrypt(data, decrypt_key, hmac_key));
     let hashed = try!(crypto::hash_sha512(key_plain.as_slice()));
 
-    let mut encrypt = [0u8; 32];
-    let mut hmac = [0u8; 32];
-
-    encrypt.clone_from_slice(&hashed[..32]);
-    hmac.clone_from_slice(&hashed[32..]);
-
-    Ok(DerivedKey {
-        encrypt: encrypt,
-        hmac: hmac,
-    })
+    Ok(hashed.into())
 }
 
 

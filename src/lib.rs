@@ -41,12 +41,21 @@ mod crypto;
 mod vault;
 mod attachment;
 mod opcldat;
+mod key;
 
 pub use profile::Profile;
 pub use item::Item;
 pub use folder::Folder;
 pub use vault::Vault;
 pub use attachment::Attachment;
+pub use key::{Key, EncryptionKey, HmacKey};
+
+/// Alias we use to indicate we expect the master key
+pub type MasterKey = Key;
+/// Alias we use to indicate we expect the overview key
+pub type OverviewKey = Key;
+/// Alias we use to indicate we expect an item's key
+pub type ItemKey = Key;
 
 #[derive(Debug)]
 pub enum Error {
@@ -99,15 +108,6 @@ impl convert::From<uuid::ParseError> for Error {
 
 pub type Result<T> = result::Result<T, Error>;
 
-pub type EncryptionKey = [u8; 32];
-pub type HmacKey = [u8; 32];
-
-#[derive(Debug)]
-pub struct DerivedKey {
-    pub encrypt: EncryptionKey,
-    pub hmac: HmacKey,
-}
-
 #[cfg(test)]
 mod tests {
     #[test]
@@ -119,7 +119,7 @@ mod tests {
         assert_eq!(3, vault.folders.len());
 
         let (master, overview) = vault.profile.decrypt_keys(b"freddy").expect("keys");
-        vault.read_items(&overview.hmac).expect("read_items");
+        vault.read_items(overview.verification()).expect("read_items");
         assert_eq!(29, vault.items.as_ref().expect("items").len());
 
         let item_uuid = Uuid::parse_str("5ADFF73C09004C448D45565BC4750DE2").expect("uuid");

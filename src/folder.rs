@@ -13,7 +13,7 @@ use std::io::prelude::*;
 use std::collections::HashMap;
 
 use super::opdata01;
-use super::{Result, DerivedKey, Uuid};
+use super::{Result, OverviewKey, Uuid};
 
 #[derive(Debug, RustcDecodable)]
 pub struct FolderData {
@@ -50,8 +50,8 @@ impl Folder {
     }
 
     /// Decrypt the folder's overview data given the overview keys
-    pub fn decrypt_overview(&self, key: &DerivedKey) -> Result<Vec<u8>> {
-        match opdata01::decrypt(&self.overview[..], &key.encrypt, &key.hmac) {
+    pub fn decrypt_overview(&self, key: &OverviewKey) -> Result<Vec<u8>> {
+        match opdata01::decrypt(&self.overview[..], key.encryption(), key.verification()) {
             Ok(x) => Ok(x),
             Err(e) => Err(From::from(e)),
         }
