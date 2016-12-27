@@ -117,16 +117,17 @@ mod tests {
 
         let mut vault = Vault::new(Path::new("onepassword_data")).expect("vault");
         assert_eq!(3, vault.folders.len());
+        assert_eq!(0, vault.items.len());
 
         let (master, overview) = vault.profile.decrypt_keys(b"freddy").expect("keys");
         vault.read_items(overview.verification()).expect("read_items");
-        assert_eq!(29, vault.items.as_ref().expect("items").len());
+        assert_eq!(29, vault.items.len());
 
         let item_uuid = Uuid::parse_str("5ADFF73C09004C448D45565BC4750DE2").expect("uuid");
-        let _decrypted = vault.items.as_ref().expect("items")[&item_uuid].decrypt_detail(&master).expect("item");
-        let _overview = vault.items.as_ref().expect("items")[&item_uuid].decrypt_overview(&overview).expect("item");
+        let _decrypted = vault.items[&item_uuid].decrypt_detail(&master).expect("item");
+        let _overview = vault.items[&item_uuid].decrypt_overview(&overview).expect("item");
 
-        for (_, _item) in vault.items.expect("items") {
+        for (_, _item) in vault.items {
             let item_key = _item.item_key(&master).expect("item keys");
             for (_, _att) in _item.attachments {
                 let _icon = _att.decrypt_icon(&item_key).expect("decrypt icon");

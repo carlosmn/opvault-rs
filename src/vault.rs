@@ -22,7 +22,7 @@ pub struct Vault {
     /// The folders in this vault, keyed by their UUID
     pub folders: HashMap<Uuid, Folder>,
     /// The items in this vault.
-    pub items: Option<HashMap<Uuid, Item>>,
+    pub items: HashMap<Uuid, Item>,
     /// The attachments in this vault
     attachments: HashMap<Uuid, Attachment>,
 }
@@ -40,7 +40,7 @@ impl Vault {
             base: base,
             profile: profile,
             folders: folders,
-            items: None,
+            items: HashMap::new(),
             attachments: attachments,
         })
     }
@@ -49,7 +49,7 @@ impl Vault {
     /// the integrity of the item data.
     pub fn read_items(&mut self, key: &HmacKey) -> Result<()> {
         let items = try!(item::read_items(&self.base, &mut self.attachments, key));
-        self.items = Some(items);
+        self.items = items;
         Ok(())
     }
 }
