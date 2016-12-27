@@ -7,8 +7,14 @@
 
 //! Read and decrypt the OPVault format
 //!
-//! This is the export format used by 1password, which it uses to enable
-//! file-based synchronization between computers.
+//! This is the format used by 1password, including for file-based
+//! synchronization between computers.
+//!
+//! The user's password unlocks the vault by being converted into four paired
+//! keys. Each pair of keys lets us verify the integrity of the data before
+//! trying to decrypt it.
+//!
+//! The format is described at https://support.1password.com/opvault-design/
 
 extern crate rustc_serialize;
 extern crate openssl;
