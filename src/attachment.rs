@@ -121,10 +121,10 @@ pub fn read_attachment(p: &Path) -> Result<Attachment> {
     let mut f = try!(fs::File::open(p));
 
     let metadata = try!(opcldat::read_header(&mut f));
-    let mut json_str = vec![0u8; metadata.metadata_size as usize];
-    try!(f.read_exact(&mut json_str));
-    // FIXME: this probably shouldn't be lossy but error out
-    let data = try!(json::decode(&String::from_utf8_lossy(&json_str[..])));
+    let mut json_data = vec![0u8; metadata.metadata_size as usize];
+    try!(f.read_exact(&mut json_data));
+    let json_str = try!(String::from_utf8(json_data));
+    let data = try!(json::decode(&json_str));
     match Attachment::from_attachment_data(data, p.to_path_buf()) {
         Ok(x) => Ok(x),
         Err(e) => Err(From::from(e)),

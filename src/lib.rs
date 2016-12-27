@@ -18,6 +18,7 @@ extern crate uuid;
 use std::io;
 use std::result;
 use std::convert;
+use std::string::FromUtf8Error;
 
 use rustc_serialize::base64::FromBase64Error;
 use rustc_serialize::json;
@@ -46,6 +47,7 @@ pub enum Error {
     IoError(io::Error),
     JsonDecoder(json::DecoderError),
     FromBase64(FromBase64Error),
+    FromUtf8Error(FromUtf8Error),
     OpdataError(OpdataError),
     Crypto(crypto::Error),
     ItemError,
@@ -68,6 +70,12 @@ impl convert::From<json::DecoderError> for Error {
 impl convert::From<FromBase64Error> for Error {
     fn from(e: FromBase64Error) -> Self {
         Error::FromBase64(e)
+    }
+}
+
+impl convert::From<FromUtf8Error> for Error {
+    fn from(e: FromUtf8Error) -> Self {
+        Error::FromUtf8Error(e)
     }
 }
 
