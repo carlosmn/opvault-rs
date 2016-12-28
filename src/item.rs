@@ -14,6 +14,7 @@ use std::io::ErrorKind;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::result;
+use std::rc::Rc;
 
 use super::crypto::{verify_data, decrypt_data, hmac};
 use super::opdata01;
@@ -141,11 +142,15 @@ pub struct Item {
     pub uuid: Uuid,
     pub fave: Option<i64>,
     pub attachments: HashMap<Uuid, Attachment>,
+
+    master: Rc<MasterKey>,
+    overview: Rc<OverviewKey>,
 }
 
 impl Item {
-    fn from_item_data(d: ItemData, atts: &mut HashMap<Uuid, Attachment>, key: &HmacKey) -> Result<Item> {
-        if !try!(d.verify(key)) {
+    fn from_item_data(d: ItemData, atts: &mut HashMap<Uuid, Attachment>, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<Item> {
+        if !try!(d.verify(overview.verification())) {
+            println!("bad verification");
             return Err(Error::ItemError);
         }
 
@@ -175,33 +180,35 @@ impl Item {
             uuid: uuid,
             fave: d.fave,
             attachments: attachments,
+            master: master,
+            overview: overview,
         })
     }
 
-    /// decrypt this item's details given the master encryption and hmac keys.
-    pub fn decrypt_detail(&self, key: &MasterKey) -> Result<Vec<u8>> {
-        let keys = try!(self.item_key(key));
+    /// Decrypt this item's details
+    pub fn detail(&self) -> Result<Vec<u8>> {
+        let keys = try!(self.item_key());
         match opdata01::decrypt(&self.d[..], keys.encryption(), keys.verification()) {
             Ok(x) => Ok(x),
             Err(e) => Err(From::from(e)),
         }
     }
 
-    /// decrypt the item's overview given the overview encryption and hmac keys.
-    pub fn decrypt_overview(&self, key: &OverviewKey) -> Result<Vec<u8>> {
-        match opdata01::decrypt(&self.o[..], key.encryption(), key.verification()) {
+    /// Decrypt the item's overview
+    pub fn overview(&self) -> Result<Vec<u8>> {
+        match opdata01::decrypt(&self.o[..], self.overview.encryption(), self.overview.verification()) {
             Ok(x) => Ok(x),
             Err(e) => Err(From::from(e)),
         }
     }
 
-    pub fn item_key(&self, key: &MasterKey) -> Result<ItemKey> {
-        if !try!(verify_data(&self.k[..], key.verification())) {
+    pub fn item_key(&self) -> Result<ItemKey> {
+        if !try!(verify_data(&self.k[..], self.master.verification())) {
             return Err(Error::ItemError);
         }
 
         let iv = &self.k[..16];
-        let keys = try!(decrypt_data(&self.k[16..], key.encryption(), iv));
+        let keys = try!(decrypt_data(&self.k[16..], self.master.encryption(), iv));
 
         Ok(keys.into())
     }
@@ -210,19 +217,19 @@ impl Item {
 static BANDS: &'static [u8; 16] = b"0123456789ABCDEF";
 
 // Load the items given the containing path
-pub fn read_items(p: &Path, atts: &mut HashMap<Uuid, Attachment>, key: &HmacKey) -> Result<HashMap<Uuid, Item>> {
+pub fn read_items(p: &Path, atts: &mut HashMap<Uuid, Attachment>, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<HashMap<Uuid, Item>> {
     let mut map = HashMap::new();
     for x in BANDS.iter() {
         let name = format!("band_{}.js", *x as char);
         let path = p.join(name);
-        let items = try!(read_band(&path, atts, key));
+        let items = try!(read_band(&path, atts, master.clone(), overview.clone()));
         map.extend(items);
     }
 
     Ok(map)
 }
 
-fn read_band(p: &Path, atts: &mut HashMap<Uuid, Attachment>, key: &HmacKey) -> Result<HashMap<Uuid, Item>> {
+fn read_band<'a>(p: &Path, atts: &mut HashMap<Uuid, Attachment>, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<HashMap<Uuid, Item>> {
     let mut f = match File::open(p) {
         Err(ref e) if e.kind() == ErrorKind::NotFound => return Ok(HashMap::new()),
         Err(e) => return Err(From::from(e)),
@@ -235,7 +242,7 @@ fn read_band(p: &Path, atts: &mut HashMap<Uuid, Attachment>, key: &HmacKey) -> R
     let mut items: HashMap<Uuid, ItemData> = try!(json::decode(json_str));
     let mut map = HashMap::new();
     for (k, v) in items.drain() {
-        map.insert(k, try!(Item::from_item_data(v, atts, key)));
+        map.insert(k, try!(Item::from_item_data(v, atts, master.clone(), overview.clone())));
     }
 
     Ok(map)

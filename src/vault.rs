@@ -7,14 +7,67 @@
 
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
-
+use std::rc::Rc;
 use super::Result;
-use super::{Profile, Folder, Item, HmacKey, Uuid, Attachment};
-use super::{folder, profile, item, attachment};
+use super::{Profile, Folder, Item, HmacKey, Uuid, Attachment, Key, MasterKey, OverviewKey};
+use super::{folder, profile, item, attachment, crypto, opdata01};
 
-/// This represents a vault for a particular profile.
+/// A locked vault has just been created and has not loaded any items or
+/// attachments. It contains just enough information to try to unseal it.
 #[derive(Debug)]
-pub struct Vault {
+pub struct LockedVault {
+    base: PathBuf,
+    /// The profile information, including the password hint and master and
+    /// overview keys.
+    pub profile: Profile,
+}
+
+impl LockedVault {
+    /// Read the vault's profile data into memory. This lets the application
+    /// provide a password hint to the user.
+    pub fn open(path: &Path) -> Result<LockedVault> {
+        let base = path.join("default");
+        let profile = try!(profile::read_profile(&base.join("profile.js")));
+
+        Ok(LockedVault {
+            base: base,
+            profile: profile,
+        })
+    }
+
+    /// Unlock this vault with the user's master password
+    pub fn unlock(self, password: &[u8]) -> Result<UnlockedVault> {
+        let (master, overview) = try!(self.decrypt_keys(password));
+        UnlockedVault::new(self.base, self.profile, Rc::new(master), Rc::new(overview))
+    }
+
+    /// Decrypt and derive the master and overview keys given the user's master
+    /// password. The master keys can be used to retrieve item details and the
+    /// overview keys decrypt item and folder overview data.
+    fn decrypt_keys(&self, password: &[u8]) -> Result<(MasterKey, OverviewKey)> {
+        let key = try!(crypto::pbkdf2(password, &self.profile.salt[..], self.profile.iterations as usize));
+        let decrypt_key = &key[..32];
+        let hmac_key = &key[32..];
+
+        let master_key = try!(derive_key(&self.profile.master_key[..], decrypt_key, hmac_key));
+        let overview_key = try!(derive_key(&self.profile.overview_key[..], decrypt_key, hmac_key));
+
+        Ok((master_key, overview_key))
+    }
+}
+
+/// Derive a key from its opdata01-encoded source
+fn derive_key(data: &[u8], decrypt_key: &[u8], hmac_key: &[u8]) -> Result<Key> {
+    let key_plain = try!(opdata01::decrypt(data, decrypt_key, hmac_key));
+    let hashed = try!(crypto::hash_sha512(key_plain.as_slice()));
+
+    Ok(hashed.into())
+}
+
+/// An unlocked vault has loaded the encrypted items and attachments and
+/// contains the keys necessary to decrypt the contents.
+#[derive(Debug)]
+pub struct UnlockedVault {
     base: PathBuf,
     /// The profile information, including the password hint and master and
     /// overview keys.
@@ -23,33 +76,30 @@ pub struct Vault {
     pub folders: HashMap<Uuid, Folder>,
     /// The items in this vault.
     pub items: HashMap<Uuid, Item>,
-    /// The attachments in this vault
-    attachments: HashMap<Uuid, Attachment>,
+
+    /// Master key
+    master: Rc<MasterKey>,
+    /// Overview key
+    overview: Rc<OverviewKey>,
 }
 
-impl Vault {
+impl UnlockedVault {
     /// Read the encrypted data in a vault. We assume the profile is "default"
-    /// which is the only one currently in use.
-    pub fn new(p: &Path) -> Result<Vault> {
-        let base = p.join("default");
+    /// which is the only one currently in use. This is primarily for use by
+    /// `LockedVault`'s `unlock` method.
+    fn new(base: PathBuf, profile: Profile, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<UnlockedVault> {
         let folders = try!(folder::read_folders(&base.join("folders.js")));
-        let profile = try!(profile::read_profile(&base.join("profile.js")));
-        let attachments = try!(attachment::read_attachments(&base));
+        let mut attachments = try!(attachment::read_attachments(&base));
+        let items = try!(item::read_items(&base, &mut attachments, master.clone(), overview.clone()));
 
-        Ok(Vault {
+        Ok(UnlockedVault {
             base: base,
             profile: profile,
             folders: folders,
-            items: HashMap::new(),
-            attachments: attachments,
+            items: items,
+            master: master,
+            overview: overview,
         })
     }
 
-    /// Read the items vault into memory. The master HMAC key is used to check
-    /// the integrity of the item data.
-    pub fn read_items(&mut self, key: &HmacKey) -> Result<()> {
-        let items = try!(item::read_items(&self.base, &mut self.attachments, key));
-        self.items = items;
-        Ok(())
-    }
 }

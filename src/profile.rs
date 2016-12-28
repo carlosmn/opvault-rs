@@ -68,29 +68,7 @@ impl Profile {
         })
     }
 
-    /// Decrypt and derive the master and overview keys given the user's master
-    /// password. The master keys can be used to retrieve item details and the
-    /// overview keys decrypt item and folder overview data.
-    pub fn decrypt_keys(&self, password: &[u8]) -> Result<(MasterKey, OverviewKey)> {
-        let key = try!(crypto::pbkdf2(password, &self.salt[..], self.iterations as usize));
-        let decrypt_key = &key[..32];
-        let hmac_key = &key[32..];
-
-        let master_key = try!(derive_key(&self.master_key[..], decrypt_key, hmac_key));
-        let overview_key = try!(derive_key(&self.overview_key[..], decrypt_key, hmac_key));
-
-        Ok((master_key, overview_key))
-    }
 }
-
-/// Derive a key from its opdata01-encoded source
-fn derive_key(data: &[u8], decrypt_key: &[u8], hmac_key: &[u8]) -> Result<Key> {
-    let key_plain = try!(opdata01::decrypt(data, decrypt_key, hmac_key));
-    let hashed = try!(crypto::hash_sha512(key_plain.as_slice()));
-
-    Ok(hashed.into())
-}
-
 
 // Read in the profile. If the user's master password is given, we also decrypt the master and overview keys
 pub fn read_profile(p: &Path) -> Result<Profile> {
