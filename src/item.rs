@@ -20,7 +20,8 @@ use std::collections::hash_map::Values as HashMapValues;
 use super::crypto::{verify_data, decrypt_data, hmac};
 use super::opdata01;
 use super::{Result, Error, MasterKey, OverviewKey, ItemKey, HmacKey, Uuid, AttachmentIterator};
-use super::attachment::AttachmentData;
+use super::attachment::{AttachmentData, Attachment};
+use super::attachment;
 
 /// These are the kinds of items that 1password knows about
 #[derive(Debug, Copy, Clone)]
@@ -209,6 +210,16 @@ impl<'a> Item<'a> {
         let keys = try!(decrypt_data(&self.k[16..], self.master.encryption(), iv));
 
         Ok(keys.into())
+    }
+
+    pub fn get_attachment(&self, id: &Uuid) -> Option<Attachment> {
+        if let Ok(key) = self.item_key() {
+            if let Some(&(ref data, ref p)) = self.atts.get(id) {
+                return attachment::from_data(data, p.clone(), Rc::new(key), self.overview.clone()).ok()
+            }
+        }
+
+        None
     }
 
     pub fn get_attachments(&'a self) -> Result<AttachmentIterator<'a>> {

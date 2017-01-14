@@ -120,16 +120,16 @@ mod tests {
         let unlocked = vault.unlock(b"freddy").expect("unlock");
         assert_eq!(29, unlocked.get_items().count());
 
-        let item_uuid = Uuid::parse_str("5ADFF73C09004C448D45565BC4750DE2").expect("uuid");
+        let item_uuid = Uuid::parse_str("F2DB5DA3FCA64372A751E0E85C67A538").expect("uuid");
         let item = unlocked.get_item(&item_uuid).expect("item lookiup");
         let _overview = item.overview().expect("item overview");
         let _decrypted = item.detail().expect("item detail");
-        for _att in item.get_attachments().expect("attachments") {
-            let _overview = _att.decrypt_overview().expect("decrypt overview");
-            let _icon = _att.decrypt_icon().expect("decrypt icon");
-            let _content = _att.decrypt_content().expect("decrypt content");
-        }
-
+        assert_eq!(2, item.get_attachments().expect("attachments").count());
+        let att_uuid = Uuid::parse_str("23F6167DC1FB457A8DE7033ACDCD06DB").expect("uuid");
+        let _att = item.get_attachment(&att_uuid).expect("attachment");
+        let _overview = _att.decrypt_overview().expect("decrypt overview");
+        let _icon = _att.decrypt_icon().expect("decrypt icon");
+        let _content = _att.decrypt_content().expect("decrypt content");
 
         for _item in unlocked.get_items() {
             for _att in _item.get_attachments().expect("attachments") {

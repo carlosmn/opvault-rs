@@ -151,3 +151,7 @@ impl<'a> Iterator for AttachmentIterator<'a> {
             .and_then(|&(ref d, ref p)| Attachment::from_attachment_data(d, p.clone(), self.key.clone(), self.overview.clone()).ok())
     }
 }
+
+pub fn from_data(attachment: &AttachmentData, p: PathBuf, key: Rc<ItemKey>, overview_key: Rc<OverviewKey>) -> Result<Attachment> {
+    Attachment::from_attachment_data(attachment, p.clone(), key, overview_key)
+}
