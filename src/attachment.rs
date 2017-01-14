@@ -10,6 +10,8 @@ use std::fs;
 use std::io::SeekFrom;
 use std::io::prelude::*;
 use std::collections::HashMap;
+use std::slice::Iter as SliceIter;
+use std::rc::Rc;
 
 use rustc_serialize::base64::FromBase64;
 use rustc_serialize::json;
@@ -20,14 +22,14 @@ use super::{opcldat, opdata01};
 #[derive(Debug, RustcDecodable)]
 #[allow(non_snake_case)]
 pub struct AttachmentData {
-    itemUUID: Uuid,
-    contentsSize: u64,
-    external: Option<bool>,
-    updatedAt: i64,
-    txTimestamp: i64,
-    overview: String,
-    createdAt: i64,
-    uuid: Uuid,
+    pub itemUUID: Uuid,
+    pub contentsSize: u64,
+    pub external: Option<bool>,
+    pub updatedAt: i64,
+    pub txTimestamp: i64,
+    pub overview: String,
+    pub createdAt: i64,
+    pub uuid: Uuid,
 }
 
 #[derive(Debug)]
@@ -41,10 +43,12 @@ pub struct Attachment {
     pub created_at: i64,
     pub uuid: Uuid,
     path: PathBuf,
+    key: Rc<ItemKey>,
+    overview_key: Rc<OverviewKey>,
 }
 
 impl Attachment {
-    fn from_attachment_data(d: AttachmentData, p: PathBuf) -> Result<Attachment> {
+    fn from_attachment_data(d: &AttachmentData, p: PathBuf, key: Rc<ItemKey>, overview_key: Rc<OverviewKey>) -> Result<Attachment> {
         let overview = try!(d.overview.from_base64());
 
         Ok(Attachment {
@@ -57,16 +61,18 @@ impl Attachment {
             created_at: d.createdAt,
             uuid: d.uuid,
             path: p,
+            key: key,
+            overview_key: overview_key,
         })
     }
 
     /// Decrypt the attachment's overview data
-    pub fn decrypt_overview(&self, key: &OverviewKey) -> Result<Vec<u8>> {
-        opdata01::decrypt(&self.overview[..], key.encryption(), key.verification())
+    pub fn decrypt_overview(&self) -> Result<Vec<u8>> {
+        opdata01::decrypt(&self.overview[..], self.overview_key.encryption(), self.overview_key.verification())
     }
 
     /// Decrypt the attachment's icon
-    pub fn decrypt_icon(&self, key: &ItemKey) -> Result<Vec<u8>> {
+    pub fn decrypt_icon(&self) -> Result<Vec<u8>> {
         // The content is just after the metadata, so we need to open the file
         // again and figure out where things are.
         let mut f = try!(fs::File::open(&self.path));
@@ -77,11 +83,11 @@ impl Attachment {
         let mut icon_data = vec![0u8; metadata.icon_size as usize];
         try!(f.seek(SeekFrom::Start(icon_offset as u64)));
         try!(f.read_exact(&mut icon_data));
-        opdata01::decrypt(&icon_data[..], key.encryption(), key.verification())
+        opdata01::decrypt(&icon_data[..], self.key.encryption(), self.key.verification())
     }
 
     /// Decrypt the attachment's content
-    pub fn decrypt_content(&self, key: &ItemKey) -> Result<Vec<u8>> {
+    pub fn decrypt_content(&self) -> Result<Vec<u8>> {
         // The content is just after the metadata, so we need to open the file
         // again and figure out where things are.
         let mut f = try!(fs::File::open(&self.path));
@@ -92,11 +98,11 @@ impl Attachment {
         let mut content_data = Vec::new();
         try!(f.seek(SeekFrom::Start(content_offset as u64)));
         try!(f.read_to_end(&mut content_data));
-        opdata01::decrypt(&content_data[..], key.encryption(), key.verification())
+        opdata01::decrypt(&content_data[..], self.key.encryption(), self.key.verification())
     }
 }
 
-pub fn read_attachments(p: &Path) -> Result<HashMap<Uuid, Attachment>> {
+pub fn read_attachments(p: &Path) -> Result<HashMap<Uuid, (AttachmentData, PathBuf)>> {
     let mut map = HashMap::new();
     for entry in try!(fs::read_dir(p)) {
         let entry = try!(entry);
@@ -108,8 +114,8 @@ pub fn read_attachments(p: &Path) -> Result<HashMap<Uuid, Attachment>> {
         let filename = entry.file_name();
         if let Some(name) = filename.to_str() {
             if name.ends_with(".attachment") {
-                let attachment = try!(read_attachment(&entry.path()));
-                map.insert(attachment.uuid, attachment);
+                let (attachment, path) = try!(read_attachment(&entry.path()));
+                map.insert(attachment.uuid, (attachment, path));
             }
         }
     }
@@ -117,7 +123,7 @@ pub fn read_attachments(p: &Path) -> Result<HashMap<Uuid, Attachment>> {
     Ok(map)
 }
 
-pub fn read_attachment(p: &Path) -> Result<Attachment> {
+pub fn read_attachment(p: &Path) -> Result<(AttachmentData, PathBuf)> {
     let mut f = try!(fs::File::open(p));
 
     let metadata = try!(opcldat::read_header(&mut f));
@@ -125,8 +131,23 @@ pub fn read_attachment(p: &Path) -> Result<Attachment> {
     try!(f.read_exact(&mut json_data));
     let json_str = try!(String::from_utf8(json_data));
     let data = try!(json::decode(&json_str));
-    match Attachment::from_attachment_data(data, p.to_path_buf()) {
-        Ok(x) => Ok(x),
-        Err(e) => Err(From::from(e)),
+
+    Ok((data, p.to_path_buf()))
+}
+
+pub struct AttachmentIterator<'a> {
+    pub inner: SliceIter<'a, Uuid>,
+    pub atts: &'a HashMap<Uuid, (AttachmentData, PathBuf)>,
+    pub key: Rc<ItemKey>,
+    pub overview: Rc<OverviewKey>,
+}
+
+impl<'a> Iterator for AttachmentIterator<'a> {
+    type Item = Attachment;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+            .and_then(|id| self.atts.get(id))
+            .and_then(|&(ref d, ref p)| Attachment::from_attachment_data(d, p.clone(), self.key.clone(), self.overview.clone()).ok())
     }
 }

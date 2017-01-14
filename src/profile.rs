@@ -12,8 +12,7 @@ use std::io::prelude::*;
 use rustc_serialize::base64::FromBase64;
 use rustc_serialize::json;
 
-use super::{Result, Key, MasterKey, OverviewKey};
-use super::{crypto, opdata01};
+use super::{Result};
 
 /// The profile data from the file, the names match the keys in the file.
 #[derive(Debug, RustcDecodable)]

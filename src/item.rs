@@ -7,7 +7,7 @@
 
 use rustc_serialize::json;
 use rustc_serialize::base64::FromBase64;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::ErrorKind;
@@ -15,10 +15,12 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::result;
 use std::rc::Rc;
+use std::collections::hash_map::Values as HashMapValues;
 
 use super::crypto::{verify_data, decrypt_data, hmac};
 use super::opdata01;
-use super::{Result, Error, MasterKey, OverviewKey, ItemKey, HmacKey, Uuid, Attachment};
+use super::{Result, Error, MasterKey, OverviewKey, ItemKey, HmacKey, Uuid, AttachmentIterator};
+use super::attachment::AttachmentData;
 
 /// These are the kinds of items that 1password knows about
 #[derive(Debug, Copy, Clone)]
@@ -71,7 +73,7 @@ impl FromStr for Category {
 }
 
 #[derive(Debug, RustcDecodable)]
-struct ItemData {
+pub struct ItemData {
     category: String,
     created: i64,
     d: String,
@@ -129,7 +131,7 @@ impl ItemData {
 
 /// An encrypted piece of information.
 #[derive(Debug)]
-pub struct Item {
+pub struct Item<'a> {
     pub category: Category,
     pub created: i64,
     pub d: Vec<u8>,
@@ -141,31 +143,26 @@ pub struct Item {
     pub updated: i64,
     pub uuid: Uuid,
     pub fave: Option<i64>,
-    pub attachments: HashMap<Uuid, Attachment>,
+    pub attachments: Vec<Uuid>,
 
+    atts: &'a HashMap<Uuid, (AttachmentData, PathBuf)>,
     master: Rc<MasterKey>,
     overview: Rc<OverviewKey>,
 }
 
-impl Item {
-    fn from_item_data(d: ItemData, atts: &mut HashMap<Uuid, Attachment>, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<Item> {
-        if !try!(d.verify(overview.verification())) {
-            println!("bad verification");
-            return Err(Error::ItemError);
-        }
-
+impl<'a> Item<'a> {
+    fn from_item_data(d: &ItemData, atts: &'a HashMap<Uuid, (AttachmentData, PathBuf)>, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<Item<'a>> {
         let uuid = try!(Uuid::parse_str(&d.uuid));
-        let folder_uuid = if let Some(id) = d.folder {
-            Some(try!(Uuid::parse_str(&id)))
+        let folder_uuid = if let Some(ref id) = d.folder {
+            Some(try!(Uuid::parse_str(id)))
         } else {
             None
         };
 
-        let wanted: Vec<Uuid> = atts.iter().filter(|&(_, ref a)| a.item == uuid).map(|(k, _)| *k).collect();
-        let mut attachments = HashMap::new();
-        for k in wanted {
-            attachments.insert(k, atts.remove(&k).unwrap());
-        }
+        let attachments: Vec<Uuid> = atts.iter()
+            .filter(|&(_, &(ref a, _))| a.itemUUID == uuid)
+            .map(|(k, _)| *k)
+            .collect();
 
         Ok(Item {
             category: try!(Category::from_str(&d.category)),
@@ -180,6 +177,7 @@ impl Item {
             uuid: uuid,
             fave: d.fave,
             attachments: attachments,
+            atts: atts,
             master: master,
             overview: overview,
         })
@@ -202,7 +200,7 @@ impl Item {
         }
     }
 
-    pub fn item_key(&self) -> Result<ItemKey> {
+    fn item_key(&self) -> Result<ItemKey> {
         if !try!(verify_data(&self.k[..], self.master.verification())) {
             return Err(Error::ItemError);
         }
@@ -212,24 +210,34 @@ impl Item {
 
         Ok(keys.into())
     }
+
+    pub fn get_attachments(&'a self) -> Result<AttachmentIterator<'a>> {
+        let key = try!(self.item_key());
+        Ok(AttachmentIterator {
+            inner: self.attachments.iter(),
+            atts: self.atts,
+            key: Rc::new(key),
+            overview: self.overview.clone(),
+        })
+    }
 }
 
 static BANDS: &'static [u8; 16] = b"0123456789ABCDEF";
 
 // Load the items given the containing path
-pub fn read_items(p: &Path, atts: &mut HashMap<Uuid, Attachment>, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<HashMap<Uuid, Item>> {
+pub fn read_items(p: &Path, master: Rc<MasterKey>) -> Result<HashMap<Uuid, ItemData>> {
     let mut map = HashMap::new();
     for x in BANDS.iter() {
         let name = format!("band_{}.js", *x as char);
         let path = p.join(name);
-        let items = try!(read_band(&path, atts, master.clone(), overview.clone()));
+        let items = try!(read_band(&path, master.clone()));
         map.extend(items);
     }
 
     Ok(map)
 }
 
-fn read_band<'a>(p: &Path, atts: &mut HashMap<Uuid, Attachment>, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<HashMap<Uuid, Item>> {
+fn read_band(p: &Path, master: Rc<MasterKey>) -> Result<HashMap<Uuid, ItemData>> {
     let mut f = match File::open(p) {
         Err(ref e) if e.kind() == ErrorKind::NotFound => return Ok(HashMap::new()),
         Err(e) => return Err(From::from(e)),
@@ -240,10 +248,29 @@ fn read_band<'a>(p: &Path, atts: &mut HashMap<Uuid, Attachment>, master: Rc<Mast
     let json_str = s.trim_left_matches("ld(").trim_right_matches(");");
 
     let mut items: HashMap<Uuid, ItemData> = try!(json::decode(json_str));
-    let mut map = HashMap::new();
-    for (k, v) in items.drain() {
-        map.insert(k, try!(Item::from_item_data(v, atts, master.clone(), overview.clone())));
-    }
+    let valid_items = items.drain()
+        .filter(|&(_, ref i)| i.verify(master.verification()).is_ok())
+        .collect();
+    Ok(valid_items)
+}
 
-    Ok(map)
+pub fn item_from_data<'a>(d: &ItemData, atts: &'a HashMap<Uuid, (AttachmentData, PathBuf)>, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<Item<'a>> {
+    Item::from_item_data(d, atts, master, overview)
+}
+
+pub struct ItemIterator<'a> {
+    pub inner: HashMapValues<'a, Uuid, ItemData>,
+    pub master: Rc<MasterKey>,
+    pub overview: Rc<OverviewKey>,
+    pub attachments: &'a HashMap<Uuid, (AttachmentData, PathBuf)>,
+}
+
+impl<'a> Iterator for ItemIterator<'a> {
+    type Item = Item<'a>;
+
+    fn next(&mut self) -> Option<Item<'a>> {
+        self.inner.next().and_then(|item_data| {
+            item_from_data(item_data, self.attachments, self.master.clone(), self.overview.clone()).ok()
+        })
+    }
 }

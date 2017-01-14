@@ -9,8 +9,10 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::rc::Rc;
 use super::Result;
-use super::{Profile, Folder, Item, HmacKey, Uuid, Attachment, Key, MasterKey, OverviewKey};
+use super::{Profile, Folder, Item, Uuid, Key, MasterKey, OverviewKey};
 use super::{folder, profile, item, attachment, crypto, opdata01};
+use super::item::{ItemData, ItemIterator};
+use super::attachment::AttachmentData;
 
 /// A locked vault has just been created and has not loaded any items or
 /// attachments. It contains just enough information to try to unseal it.
@@ -75,7 +77,8 @@ pub struct UnlockedVault {
     /// The folders in this vault, keyed by their UUID
     pub folders: HashMap<Uuid, Folder>,
     /// The items in this vault.
-    pub items: HashMap<Uuid, Item>,
+    items: HashMap<Uuid, ItemData>,
+    attachments: HashMap<Uuid, (AttachmentData, PathBuf)>,
 
     /// Master key
     master: Rc<MasterKey>,
@@ -89,17 +92,35 @@ impl UnlockedVault {
     /// `LockedVault`'s `unlock` method.
     fn new(base: PathBuf, profile: Profile, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<UnlockedVault> {
         let folders = try!(folder::read_folders(&base.join("folders.js")));
-        let mut attachments = try!(attachment::read_attachments(&base));
-        let items = try!(item::read_items(&base, &mut attachments, master.clone(), overview.clone()));
+        let attachments = try!(attachment::read_attachments(&base));
+        let items = try!(item::read_items(&base, master.clone()));
 
         Ok(UnlockedVault {
             base: base,
             profile: profile,
             folders: folders,
             items: items,
+            attachments: attachments,
             master: master,
             overview: overview,
         })
     }
 
+    pub fn get_item(&self, id: &Uuid) -> Option<Item> {
+        let data = self.items.get(id);
+        if let Some(item_data) = data {
+            item::item_from_data(item_data, &self.attachments, self.master.clone(), self.overview.clone()).ok()
+        } else {
+            None
+        }
+    }
+
+    pub fn get_items(&self) -> ItemIterator {
+        ItemIterator {
+            inner: self.items.values(),
+            master: self.master.clone(),
+            overview: self.overview.clone(),
+            attachments: &self.attachments,
+        }
+    }
 }

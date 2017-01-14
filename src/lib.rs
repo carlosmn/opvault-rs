@@ -47,7 +47,7 @@ pub use profile::Profile;
 pub use item::Item;
 pub use folder::Folder;
 pub use vault::{LockedVault, UnlockedVault};
-pub use attachment::Attachment;
+pub use attachment::{Attachment, AttachmentIterator};
 pub use key::{Key, EncryptionKey, HmacKey};
 
 /// Alias we use to indicate we expect the master key
@@ -115,23 +115,28 @@ mod tests {
         use std::path::Path;
         use super::{LockedVault, Uuid};
 
-        let mut vault = LockedVault::open(Path::new("onepassword_data")).expect("vault");
+        let vault = LockedVault::open(Path::new("onepassword_data")).expect("vault");
 
-        let mut unlocked = vault.unlock(b"freddy").expect("unlock");
-        // let (master, overview) = vault.profile.decrypt_keys(b"freddy").expect("keys");
-        // vault.read_items(overview.verification()).expect("read_items");
-        assert_eq!(29, unlocked.items.len());
+        let unlocked = vault.unlock(b"freddy").expect("unlock");
+        assert_eq!(29, unlocked.get_items().count());
 
         let item_uuid = Uuid::parse_str("5ADFF73C09004C448D45565BC4750DE2").expect("uuid");
-        let _overview = unlocked.items[&item_uuid].overview().expect("item overview");
-        let _decrypted = unlocked.items[&item_uuid].detail().expect("item detail");
+        let item = unlocked.get_item(&item_uuid).expect("item lookiup");
+        let _overview = item.overview().expect("item overview");
+        let _decrypted = item.detail().expect("item detail");
+        for _att in item.get_attachments().expect("attachments") {
+            let _overview = _att.decrypt_overview().expect("decrypt overview");
+            let _icon = _att.decrypt_icon().expect("decrypt icon");
+            let _content = _att.decrypt_content().expect("decrypt content");
+        }
 
-        // for (_, _item) in vault.items {
-        //     let item_key = _item.item_key(&master).expect("item keys");
-        //     for (_, _att) in _item.attachments {
-        //         let _icon = _att.decrypt_icon(&item_key).expect("decrypt icon");
-        //         let _content = _att.decrypt_content(&item_key).expect("decrypt content");
-        //     }
-        // }
+
+        for _item in unlocked.get_items() {
+            for _att in _item.get_attachments().expect("attachments") {
+                let _overview = _att.decrypt_overview().expect("decrypt overview");
+                let _icon = _att.decrypt_icon().expect("decrypt icon");
+                let _content = _att.decrypt_content().expect("decrypt content");
+            }
+        }
     }
 }
