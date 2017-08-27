@@ -33,8 +33,8 @@ pub fn pbkdf2(pw: &[u8], salt: &[u8], iterations: usize) -> Result<[u8; 64]> {
 }
 
 pub fn hash_sha512(data: &[u8]) -> Result<Vec<u8>> {
-    match hash::hash(MessageDigest::sha512(), data) {
-        Ok(x) => Ok(x),
+    match hash::hash2(MessageDigest::sha512(), data) {
+        Ok(x) => Ok(x.to_vec()),
         Err(e) => Err(From::from(e)),
     }
 }
