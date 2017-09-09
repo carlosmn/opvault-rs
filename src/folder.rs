@@ -11,6 +11,7 @@ use std::path::Path;
 use std::fs::File;
 use std::io::prelude::*;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use super::opdata01;
 use super::{Result, OverviewKey, Uuid};
@@ -29,15 +30,16 @@ pub struct FolderData {
 #[derive(Debug)]
 pub struct Folder {
     pub created: i64,
-    pub overview: Vec<u8>,
     pub tx: i64,
     pub updated: i64,
     pub uuid: Uuid,
     pub smart: Option<bool>,
+    overview: Vec<u8>,
+    overview_key: Rc<OverviewKey>
 }
 
 impl Folder {
-    fn from_folder_data(d: FolderData) -> Result<Folder> {
+    fn from_folder_data(d: FolderData, overview_key: Rc<OverviewKey>) -> Result<Folder> {
         let overview = try!(d.overview.from_base64());
         Ok(Folder {
             created: d.created,
@@ -46,11 +48,13 @@ impl Folder {
             updated: d.updated,
             uuid: d.uuid,
             smart: d.smart,
+            overview_key: overview_key,
         })
     }
 
-    /// Decrypt the folder's overview data given the overview keys
-    pub fn decrypt_overview(&self, key: &OverviewKey) -> Result<Vec<u8>> {
+    /// Decrypt the folder's overview data
+    pub fn overview(&self) -> Result<Vec<u8>> {
+        let key = self.overview_key.clone();
         match opdata01::decrypt(&self.overview[..], key.encryption(), key.verification()) {
             Ok(x) => Ok(x),
             Err(e) => Err(From::from(e)),
@@ -59,7 +63,7 @@ impl Folder {
 }
 
 /// Read the encrypted folder data
-pub fn read_folders(p: &Path) -> Result<HashMap<Uuid, Folder>> {
+pub fn read_folders(p: &Path, overview_key: Rc<OverviewKey>) -> Result<HashMap<Uuid, Folder>> {
     let mut f = try!(File::open(p));
     let mut s = String::new();
     try!(f.read_to_string(&mut s));
@@ -70,7 +74,7 @@ pub fn read_folders(p: &Path) -> Result<HashMap<Uuid, Folder>> {
     let mut folders = HashMap::new();
 
     for (k, v) in folder_datas.drain() {
-        folders.insert(k, try!(Folder::from_folder_data(v)));
+        folders.insert(k, try!(Folder::from_folder_data(v, overview_key.clone())));
     }
 
     Ok(folders)

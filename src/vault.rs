@@ -91,7 +91,7 @@ impl UnlockedVault {
     /// which is the only one currently in use. This is primarily for use by
     /// `LockedVault`'s `unlock` method.
     fn new(base: PathBuf, profile: Profile, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<UnlockedVault> {
-        let folders = try!(folder::read_folders(&base.join("folders.js")));
+        let folders = try!(folder::read_folders(&base.join("folders.js"), overview.clone()));
         let attachments = try!(attachment::read_attachments(&base));
         let items = try!(item::read_items(&base, master.clone()));
 
