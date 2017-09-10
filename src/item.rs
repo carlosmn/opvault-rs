@@ -24,7 +24,7 @@ use super::attachment::{AttachmentData, Attachment};
 use super::attachment;
 
 /// These are the kinds of items that 1password knows about
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Category {
     Login,
     CreditCard,
