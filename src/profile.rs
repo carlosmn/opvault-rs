@@ -9,13 +9,12 @@ use std::path::Path;
 use std::fs::File;
 use std::io::prelude::*;
 
-use rustc_serialize::base64::FromBase64;
-use rustc_serialize::json;
-
+use base64;
+use serde_json;
 use super::{Result};
 
 /// The profile data from the file, the names match the keys in the file.
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, Deserialize)]
 #[allow(non_snake_case)]
 struct ProfileData {
     pub lastUpdatedBy: String,
@@ -49,9 +48,9 @@ pub struct Profile {
 
 impl Profile {
     fn from_profile_data(d: ProfileData) -> Result<Profile> {
-        let salt = try!(d.salt.from_base64());
-        let master_key = try!(d.masterKey.from_base64());
-        let overview_key = try!(d.overviewKey.from_base64());
+        let salt = try!(base64::decode(&d.salt));
+        let master_key = try!(base64::decode(&d.masterKey));
+        let overview_key = try!(base64::decode(&d.overviewKey));
 
         Ok(Profile {
             last_updated_by: d.lastUpdatedBy,
@@ -77,7 +76,7 @@ pub fn read_profile(p: &Path) -> Result<Profile> {
     // the file looks like it's meant to be eval'ed by a JS engine, which sounds
     // like a particularly bad idea, let's remove the non-json bits.
     let json_str = s.trim_left_matches("var profile=").trim_right_matches(';');
-    let profile_data: ProfileData = try!(json::decode(json_str));
+    let profile_data: ProfileData = try!(serde_json::from_str(json_str));
 
     Profile::from_profile_data(profile_data)
 }

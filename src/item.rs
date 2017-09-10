@@ -5,8 +5,6 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-use rustc_serialize::json;
-use rustc_serialize::base64::FromBase64;
 use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::prelude::*;
@@ -17,6 +15,8 @@ use std::result;
 use std::rc::Rc;
 use std::collections::hash_map::Values as HashMapValues;
 
+use serde_json;
+use base64;
 use super::crypto::{verify_data, decrypt_data, hmac};
 use super::opdata01;
 use super::{Result, Error, MasterKey, OverviewKey, ItemKey, HmacKey, Uuid, AttachmentIterator};
@@ -73,7 +73,7 @@ impl FromStr for Category {
     }
 }
 
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, Deserialize)]
 pub struct ItemData {
     category: String,
     created: i64,
@@ -124,7 +124,7 @@ impl ItemData {
             Ok(())
         }));
 
-        let expected_hmac = try!(self.hmac.from_base64());
+        let expected_hmac = try!(base64::decode(&self.hmac));
 
         Ok(expected_hmac == actual_hmac)
     }
@@ -168,11 +168,11 @@ impl<'a> Item<'a> {
         Ok(Item {
             category: try!(Category::from_str(&d.category)),
             created: d.created,
-            d: try!(d.d.from_base64()),
+            d: try!(base64::decode(&d.d)),
             folder: folder_uuid,
-            hmac: try!(d.hmac.from_base64()),
-            k: try!(d.k.from_base64()),
-            o: try!(d.o.from_base64()),
+            hmac: try!(base64::decode(&d.hmac)),
+            k: try!(base64::decode(&d.k)),
+            o: try!(base64::decode(&d.o)),
             tx: d.tx,
             updated: d.updated,
             uuid: uuid,
@@ -258,7 +258,7 @@ fn read_band(p: &Path, master: Rc<MasterKey>) -> Result<HashMap<Uuid, ItemData>>
     try!(f.read_to_string(&mut s));
     let json_str = s.trim_left_matches("ld(").trim_right_matches(");");
 
-    let mut items: HashMap<Uuid, ItemData> = try!(json::decode(json_str));
+    let mut items: HashMap<Uuid, ItemData> = try!(serde_json::from_str(json_str));
     let valid_items = items.drain()
         .filter(|&(_, ref i)| i.verify(master.verification()).is_ok())
         .collect();

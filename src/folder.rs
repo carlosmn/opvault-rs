@@ -5,18 +5,18 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-use rustc_serialize::json;
-use rustc_serialize::base64::FromBase64;
 use std::path::Path;
 use std::fs::File;
 use std::io::prelude::*;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use serde_json;
+use base64;
 use super::opdata01;
 use super::{Result, OverviewKey, Uuid};
 
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, Deserialize)]
 pub struct FolderData {
     pub created: i64,
     pub overview: String,
@@ -40,7 +40,7 @@ pub struct Folder {
 
 impl Folder {
     fn from_folder_data(d: FolderData, overview_key: Rc<OverviewKey>) -> Result<Folder> {
-        let overview = try!(d.overview.from_base64());
+        let overview = try!(base64::decode(&d.overview));
         Ok(Folder {
             created: d.created,
             overview: overview,
@@ -70,7 +70,7 @@ pub fn read_folders(p: &Path, overview_key: Rc<OverviewKey>) -> Result<HashMap<U
     // the file looks like it's meant to be eval'ed by a JS engine, which sounds
     // like a particularly bad idea, let's remove the non-json bits.
     let json_str = s.trim_left_matches("loadFolders(").trim_right_matches(");");
-    let mut folder_datas: HashMap<Uuid, FolderData> = try!(json::decode(json_str));
+    let mut folder_datas: HashMap<Uuid, FolderData> = try!(serde_json::from_str(json_str));
     let mut folders = HashMap::new();
 
     for (k, v) in folder_datas.drain() {

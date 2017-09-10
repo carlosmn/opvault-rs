@@ -13,13 +13,12 @@ use std::collections::HashMap;
 use std::slice::Iter as SliceIter;
 use std::rc::Rc;
 
-use rustc_serialize::base64::FromBase64;
-use rustc_serialize::json;
-
+use base64;
+use serde_json;
 use super::{Result, Uuid, OverviewKey, ItemKey};
 use super::{opcldat, opdata01};
 
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, Deserialize)]
 #[allow(non_snake_case)]
 pub struct AttachmentData {
     pub itemUUID: Uuid,
@@ -49,7 +48,7 @@ pub struct Attachment {
 
 impl Attachment {
     fn from_attachment_data(d: &AttachmentData, p: PathBuf, key: Rc<ItemKey>, overview_key: Rc<OverviewKey>) -> Result<Attachment> {
-        let overview = try!(d.overview.from_base64());
+        let overview = try!(base64::decode(&d.overview));
 
         Ok(Attachment {
             item: d.itemUUID,
@@ -130,7 +129,7 @@ pub fn read_attachment(p: &Path) -> Result<(AttachmentData, PathBuf)> {
     let mut json_data = vec![0u8; metadata.metadata_size as usize];
     try!(f.read_exact(&mut json_data));
     let json_str = try!(String::from_utf8(json_data));
-    let data = try!(json::decode(&json_str));
+    let data = try!(serde_json::from_str(&json_str));
 
     Ok((data, p.to_path_buf()))
 }

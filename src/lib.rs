@@ -16,8 +16,12 @@
 //!
 //! The format is described at https://support.1password.com/opvault-design/
 
-extern crate rustc_serialize;
+extern crate serde;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 extern crate openssl;
+extern crate base64;
 extern crate byteorder;
 extern crate uuid;
 
@@ -25,9 +29,6 @@ use std::io;
 use std::result;
 use std::convert;
 use std::string::FromUtf8Error;
-
-use rustc_serialize::base64::FromBase64Error;
-use rustc_serialize::json;
 
 pub use uuid::Uuid;
 
@@ -60,8 +61,8 @@ pub type ItemKey = Key;
 #[derive(Debug)]
 pub enum Error {
     IoError(io::Error),
-    JsonDecoder(json::DecoderError),
-    FromBase64(FromBase64Error),
+    JsonError(serde_json::Error),
+    Base64Error(base64::DecodeError),
     FromUtf8Error(FromUtf8Error),
     OpdataError(OpdataError),
     Crypto(crypto::Error),
@@ -76,15 +77,15 @@ impl convert::From<io::Error> for Error {
     }
 }
 
-impl convert::From<json::DecoderError> for Error {
-    fn from(e: json::DecoderError) -> Self {
-        Error::JsonDecoder(e)
+impl convert::From<serde_json::Error> for Error {
+    fn from(e: serde_json::Error) -> Self {
+        Error::JsonError(e)
     }
 }
 
-impl convert::From<FromBase64Error> for Error {
-    fn from(e: FromBase64Error) -> Self {
-        Error::FromBase64(e)
+impl convert::From<base64::DecodeError> for Error {
+    fn from(e: base64::DecodeError) -> Self {
+        Error::Base64Error(e)
     }
 }
 
