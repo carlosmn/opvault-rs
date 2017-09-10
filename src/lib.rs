@@ -44,7 +44,7 @@ mod opcldat;
 mod key;
 
 pub use profile::Profile;
-pub use item::Item;
+pub use item::{Item, Category};
 pub use folder::Folder;
 pub use vault::{LockedVault, UnlockedVault};
 pub use attachment::{Attachment, AttachmentIterator};
