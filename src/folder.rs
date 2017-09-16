@@ -8,6 +8,7 @@
 use std::path::Path;
 use std::fs::File;
 use std::io::prelude::*;
+use std::io;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -64,7 +65,12 @@ impl Folder {
 
 /// Read the encrypted folder data
 pub fn read_folders(p: &Path, overview_key: Rc<OverviewKey>) -> Result<HashMap<Uuid, Folder>> {
-    let mut f = try!(File::open(p));
+    let mut f = match File::open(p) {
+        Ok(x) => x,
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => return Ok(HashMap::new()),
+        Err(e) => return Err(From::from(e)),
+    };
+
     let mut s = String::new();
     try!(f.read_to_string(&mut s));
     // the file looks like it's meant to be eval'ed by a JS engine, which sounds
