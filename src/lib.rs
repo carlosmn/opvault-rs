@@ -45,6 +45,7 @@ mod opcldat;
 mod key;
 
 mod detail;
+mod overview;
 
 pub use profile::Profile;
 pub use item::{Item, Category};
@@ -54,6 +55,7 @@ pub use attachment::{Attachment, AttachmentIterator};
 pub use key::{Key, EncryptionKey, HmacKey};
 
 pub use detail::{Login, HtmlForm, LoginField};
+pub use overview::{Overview, URL};
 
 /// Alias we use to indicate we expect the master key
 pub type MasterKey = Key;
