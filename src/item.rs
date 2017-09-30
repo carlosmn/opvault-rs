@@ -22,6 +22,7 @@ use super::opdata01;
 use super::{Result, Error, MasterKey, OverviewKey, ItemKey, HmacKey, Uuid, AttachmentIterator};
 use super::attachment::{AttachmentData, Attachment};
 use super::attachment;
+use super::detail::{self, Detail};
 
 /// These are the kinds of items that 1password knows about
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -185,12 +186,16 @@ impl<'a> Item<'a> {
     }
 
     /// Decrypt this item's details
-    pub fn detail(&self) -> Result<Vec<u8>> {
+    pub fn detail(&self) -> Result<Detail> {
         let keys = try!(self.item_key());
-        match opdata01::decrypt(&self.d[..], keys.encryption(), keys.verification()) {
-            Ok(x) => Ok(x),
-            Err(e) => Err(From::from(e)),
-        }
+        let raw = try!(opdata01::decrypt(&self.d[..], keys.encryption(), keys.verification()));
+        let res = if self.category == Category::Login {
+            Detail::Login(try!(detail::Login::from_slice(&raw)))
+        } else {
+            Detail::Generic(try!(detail::Generic::from_slice(&raw)))
+        };
+
+        Ok(res)
     }
 
     /// Decrypt the item's overview

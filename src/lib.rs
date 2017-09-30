@@ -44,12 +44,16 @@ mod attachment;
 mod opcldat;
 mod key;
 
+mod detail;
+
 pub use profile::Profile;
 pub use item::{Item, Category};
 pub use folder::Folder;
 pub use vault::{LockedVault, UnlockedVault};
 pub use attachment::{Attachment, AttachmentIterator};
 pub use key::{Key, EncryptionKey, HmacKey};
+
+pub use detail::{Login, HtmlForm, LoginField};
 
 /// Alias we use to indicate we expect the master key
 pub type MasterKey = Key;
@@ -127,7 +131,7 @@ mod tests {
         }
 
         let item_uuid = Uuid::parse_str("F2DB5DA3FCA64372A751E0E85C67A538").expect("uuid");
-        let item = unlocked.get_item(&item_uuid).expect("item lookiup");
+        let item = unlocked.get_item(&item_uuid).expect("item lookup");
         let _overview = item.overview().expect("item overview");
         let _decrypted = item.detail().expect("item detail");
         assert_eq!(2, item.get_attachments().expect("attachments").count());
@@ -137,11 +141,14 @@ mod tests {
         let _icon = _att.decrypt_icon().expect("decrypt icon");
         let _content = _att.decrypt_content().expect("decrypt content");
 
-        for _item in unlocked.get_items() {
-            for _att in _item.get_attachments().expect("attachments") {
-                let _overview = _att.decrypt_overview().expect("decrypt overview");
-                let _icon = _att.decrypt_icon().expect("decrypt icon");
-                let _content = _att.decrypt_content().expect("decrypt content");
+        for item in unlocked.get_items() {
+            let _overview = item.overview().expect("overview");
+            let _detail = item.detail().expect("detail");
+
+            for att in item.get_attachments().expect("attachments") {
+                let _overview = att.decrypt_overview().expect("decrypt overview");
+                let _icon = att.decrypt_icon().expect("decrypt icon");
+                let _content = att.decrypt_content().expect("decrypt content");
             }
         }
     }
