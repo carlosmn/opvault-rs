@@ -3,20 +3,20 @@ use serde_json as json;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Overview {
-    title: Option<String>,
-    ainfo: Option<String>,
+    pub title: Option<String>,
+    pub ainfo: Option<String>,
     #[serde(rename = "URLs", default)]
-    urls: Vec<URL>,
-    url: Option<String>,
+    pub urls: Vec<URL>,
+    pub url: Option<String>,
     #[serde(default)]
-    tags: Vec<String>,
-    ps: Option<i64>,
+    pub tags: Vec<String>,
+    pub ps: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct URL {
-    u: String,
+    pub u: String,
 }
 
 impl Overview {

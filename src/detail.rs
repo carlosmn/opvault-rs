@@ -43,15 +43,15 @@ impl Login {
 #[serde(rename_all = "camelCase")]
 pub struct Generic {
     #[serde(default)]
-    sections: Vec<Section>,
-    notes_plain: Option<String>,
+    pub sections: Vec<Section>,
+    pub notes_plain: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Section {
-    name: String,
-    title: String,
-    fields: Vec<Field>,
+    pub name: String,
+    pub title: String,
+    pub fields: Vec<Field>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -75,19 +75,19 @@ pub enum Field {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Address {
-    city: Option<String>,
-    zip: Option<String>,
-    state: Option<String>,
-    country: Option<String>,
-    street: Option<String>,
+    pub city: Option<String>,
+    pub zip: Option<String>,
+    pub state: Option<String>,
+    pub country: Option<String>,
+    pub street: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Attributes {
-    guarded: Option<String>,
-    clipboard_filter: Option<String>,
-    generate: Option<String>,
+    pub guarded: Option<String>,
+    pub clipboard_filter: Option<String>,
+    pub generate: Option<String>,
 }
 
 impl Generic {
