@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
+use std;
 use std::path::Path;
 use std::fs::File;
 use std::io::prelude::*;
@@ -12,6 +13,8 @@ use std::io;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use serde::de;
+use serde::Deserialize;
 use serde_json;
 use base64;
 use super::opdata01;
@@ -54,9 +57,10 @@ impl Folder {
     }
 
     /// Decrypt the folder's overview data
-    pub fn overview(&self) -> Result<Vec<u8>> {
+    pub fn overview(&self) -> Result<Overview> {
         let key = self.overview_key.clone();
-        match opdata01::decrypt(&self.overview[..], key.encryption(), key.verification()) {
+        let raw = opdata01::decrypt(&self.overview[..], key.encryption(), key.verification())?;
+        match Overview::from_slice(&raw) {
             Ok(x) => Ok(x),
             Err(e) => Err(From::from(e)),
         }
@@ -84,4 +88,29 @@ pub fn read_folders(p: &Path, overview_key: Rc<OverviewKey>) -> Result<HashMap<U
     }
 
     Ok(folders)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Overview {
+    pub title: String,
+    // Smart folders have a predicate, but the one from the sample set contains
+    // some invalid text, and it decodes into binary anyway.
+    // #[serde(rename = "predicate_b64", deserialize_with = "base64_deser")]
+    // pub predicate: Vec<u8>,
+}
+
+fn base64_deser<'de, D> (d: D) -> std::result::Result<Vec<u8>, D::Error>
+    where D: de::Deserializer<'de>
+{
+    let s = String::deserialize(d)?;
+    match base64::decode(&s) {
+        Ok(d) => Ok(d),
+        Err(e) => Err(de::Error::custom(e.to_string())),
+    }
+}
+
+impl Overview {
+    pub fn from_slice(d: &[u8]) -> serde_json::Result<Overview> {
+        serde_json::from_slice(d)
+    }
 }

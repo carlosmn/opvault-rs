@@ -129,7 +129,7 @@ mod tests {
         assert_eq!(3, unlocked.folders.len());
 
         for (_uuid, folder) in &unlocked.folders {
-            folder.overview().expect("folder overview");
+            let _overview = folder.overview().expect("folder overview");
         }
 
         let item_uuid = Uuid::parse_str("F2DB5DA3FCA64372A751E0E85C67A538").expect("uuid");
