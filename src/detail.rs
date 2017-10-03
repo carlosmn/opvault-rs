@@ -23,13 +23,26 @@ pub struct HtmlForm {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "type")]
-pub enum LoginField {
-    T{value: String, name: String, designation: Option<String>},
-    P{value: String, name: String, designation: Option<String>},
-    I{value: String, name: String, designation: Option<String>},
-    C{value: String, name: String, designation: Option<String>},
-    B{value: String, name: String, designation: Option<String>},
+pub enum LoginFieldKind {
+    #[serde(rename = "T")]
+    Text,
+    #[serde(rename = "P")]
+    Password,
+    #[serde(rename = "I")]
+    I,
+    #[serde(rename = "C")]
+    Checkbox,
+    #[serde(rename = "B")]
+    Button,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginField {
+    #[serde(rename = "type")]
+    pub kind: LoginFieldKind,
+    pub name: String,
+    pub value: String,
+    pub designation: Option<String>,
 }
 
 impl Login {
