@@ -23,11 +23,13 @@ use super::{Result, OverviewKey, Uuid};
 #[derive(Debug, Deserialize)]
 pub struct FolderData {
     pub created: i64,
-    pub overview: String,
+    #[serde(deserialize_with = "base64_deser")]
+    pub overview: Vec<u8>,
     pub tx: i64,
     pub updated: i64,
     pub uuid: Uuid,
-    pub smart: Option<bool>,
+    #[serde(default)]
+    pub smart: bool,
 }
 
 /// A "folder" or named group of items.
@@ -37,17 +39,16 @@ pub struct Folder {
     pub tx: i64,
     pub updated: i64,
     pub uuid: Uuid,
-    pub smart: Option<bool>,
+    pub smart: bool,
     overview: Vec<u8>,
     overview_key: Rc<OverviewKey>
 }
 
 impl Folder {
     fn from_folder_data(d: FolderData, overview_key: Rc<OverviewKey>) -> Result<Folder> {
-        let overview = try!(base64::decode(&d.overview));
         Ok(Folder {
             created: d.created,
-            overview: overview,
+            overview: d.overview,
             tx: d.tx,
             updated: d.updated,
             uuid: d.uuid,
