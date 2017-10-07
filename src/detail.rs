@@ -69,20 +69,40 @@ pub struct Section {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[serde(tag = "k")]
-pub enum Field {
-    String {n: String, v: Option<String>, t: String, a: Option<Attributes>},
-    Gender {n: String, v: Option<String>, t: String, a: Option<Attributes>},
-    Date {n: String, v: Option<i64>, t: String, a: Option<Attributes>},
-    MonthYear {n: String, v: Option<i64>, t: String, a: Option<Attributes>},
-    Menu {n: String, v: Option<String>, t: String, a: Option<Attributes>},
-    Cctype {n: String, v: Option<String>, t: String, a: Option<Attributes>},
-    Concealed {n: String, v: Option<String>, t: String, a: Option<Attributes>},
-    Address {n: String, v: Address, t: String, a: Option<Attributes>},
-    Email {n: String, v: Option<String>, t: String, a: Option<Attributes>},
-    Phone {n: String, v: Option<String>, t: String, a: Option<Attributes>},
+pub enum FieldKind {
+    String,
+    Gender,
+    Date,
+    MonthYear,
+    Menu,
+    Cctype,
+    Concealed,
+    Address,
+    Email,
+    Phone,
     #[serde(rename = "URL")]
-    URL {n: String, v: Option<String>, t: String, a: Option<Attributes>},
+    URL
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum FieldValue {
+    String(String),
+    Address(Address),
+    I64(i64),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Field {
+    #[serde(rename = "k")]
+    pub kind: FieldKind,
+    #[serde(rename = "n")]
+    pub name: String,
+    #[serde(rename = "v", default)]
+    pub value: Option<FieldValue>,
+    #[serde(rename = "a")]
+    pub attr: Option<Attributes>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -54,7 +54,7 @@ pub use vault::{LockedVault, UnlockedVault};
 pub use attachment::{Attachment, AttachmentIterator};
 pub use key::{Key, EncryptionKey, HmacKey};
 
-pub use detail::{Detail, Login, Generic, HtmlForm, LoginField, LoginFieldKind, Section, Field};
+pub use detail::{Detail, Login, Generic, HtmlForm, LoginField, LoginFieldKind, Section, Field, FieldValue, FieldKind};
 pub use overview::{Overview, URL};
 
 /// Alias we use to indicate we expect the master key
