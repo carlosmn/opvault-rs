@@ -93,7 +93,7 @@ impl UnlockedVault {
     fn new(base: PathBuf, profile: Profile, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<UnlockedVault> {
         let folders = try!(folder::read_folders(&base.join("folders.js"), overview.clone()));
         let attachments = try!(attachment::read_attachments(&base));
-        let items = try!(item::read_items(&base, master.clone()));
+        let items = try!(item::read_items(&base, overview.clone()));
 
         Ok(UnlockedVault {
             base: base,

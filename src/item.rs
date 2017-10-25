@@ -242,19 +242,19 @@ impl<'a> Item<'a> {
 static BANDS: &'static [u8; 16] = b"0123456789ABCDEF";
 
 // Load the items given the containing path
-pub fn read_items(p: &Path, master: Rc<MasterKey>) -> Result<HashMap<Uuid, ItemData>> {
+pub fn read_items(p: &Path, overview: Rc<OverviewKey>) -> Result<HashMap<Uuid, ItemData>> {
     let mut map = HashMap::new();
     for x in BANDS.iter() {
         let name = format!("band_{}.js", *x as char);
         let path = p.join(name);
-        let items = try!(read_band(&path, master.clone()));
+        let items = try!(read_band(&path, overview.clone()));
         map.extend(items);
     }
 
     Ok(map)
 }
 
-fn read_band(p: &Path, master: Rc<MasterKey>) -> Result<HashMap<Uuid, ItemData>> {
+fn read_band(p: &Path, overview: Rc<OverviewKey>) -> Result<HashMap<Uuid, ItemData>> {
     let mut f = match File::open(p) {
         Err(ref e) if e.kind() == ErrorKind::NotFound => return Ok(HashMap::new()),
         Err(e) => return Err(From::from(e)),
@@ -266,7 +266,7 @@ fn read_band(p: &Path, master: Rc<MasterKey>) -> Result<HashMap<Uuid, ItemData>>
 
     let mut items: HashMap<Uuid, ItemData> = try!(serde_json::from_str(json_str));
     let valid_items = items.drain()
-        .filter(|&(_, ref i)| i.verify(master.verification()).ok() == Some(true))
+        .filter(|&(_, ref i)| i.verify(overview.verification()).ok() == Some(true))
         .collect();
     Ok(valid_items)
 }
