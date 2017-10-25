@@ -266,7 +266,7 @@ fn read_band(p: &Path, master: Rc<MasterKey>) -> Result<HashMap<Uuid, ItemData>>
 
     let mut items: HashMap<Uuid, ItemData> = try!(serde_json::from_str(json_str));
     let valid_items = items.drain()
-        .filter(|&(_, ref i)| i.verify(master.verification()).is_ok())
+        .filter(|&(_, ref i)| i.verify(master.verification()).ok() == Some(true))
         .collect();
     Ok(valid_items)
 }
