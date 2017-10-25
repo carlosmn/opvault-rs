@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::rc::Rc;
 use super::Result;
-use super::{Profile, Folder, Item, Uuid, Key, MasterKey, OverviewKey};
+use super::{Profile, Folder, Item, Uuid, MasterKey, OverviewKey};
 use super::{folder, profile, item, attachment, crypto, opdata01};
 use super::item::{ItemData, ItemIterator};
 use super::attachment::AttachmentData;
@@ -54,16 +54,16 @@ impl LockedVault {
         let master_key = try!(derive_key(&self.profile.master_key[..], decrypt_key, hmac_key));
         let overview_key = try!(derive_key(&self.profile.overview_key[..], decrypt_key, hmac_key));
 
-        Ok((master_key, overview_key))
+        Ok((master_key.into(), overview_key.into()))
     }
 }
 
 /// Derive a key from its opdata01-encoded source
-fn derive_key(data: &[u8], decrypt_key: &[u8], hmac_key: &[u8]) -> Result<Key> {
+fn derive_key(data: &[u8], decrypt_key: &[u8], hmac_key: &[u8]) -> Result<Vec<u8>> {
     let key_plain = try!(opdata01::decrypt(data, decrypt_key, hmac_key));
     let hashed = try!(crypto::hash_sha512(key_plain.as_slice()));
 
-    Ok(hashed.into())
+    Ok(hashed)
 }
 
 /// An unlocked vault has loaded the encrypted items and attachments and
