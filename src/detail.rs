@@ -34,6 +34,10 @@ pub enum LoginFieldKind {
     Checkbox,
     #[serde(rename = "B")]
     Button,
+    #[serde(rename = "E")]
+    Email,
+    #[serde(rename = "S")]
+    S,
 }
 
 #[derive(Debug, Deserialize)]
