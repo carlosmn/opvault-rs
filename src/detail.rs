@@ -3,6 +3,7 @@ use serde_json as json;
 #[derive(Debug)]
 pub enum Detail {
     Login(Login),
+    Password(Password),
     Generic(Generic),
 }
 
@@ -10,6 +11,9 @@ pub enum Detail {
 #[serde(rename_all = "camelCase")]
 pub struct Login {
     pub html_form: Option<HtmlForm>,
+    // These are actually base64 bytes, but I don't know what they mean
+    #[serde(default)]
+    pub backup_keys: Vec<String>,
     #[serde(default)]
     pub fields: Vec<LoginField>,
 }
@@ -55,6 +59,16 @@ impl Login {
         json::from_slice(s)
     }
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Password {
+    // These are actually base64 bytes, but I don't know what they mean
+    #[serde(default)]
+    pub backup_keys: Vec<String>,
+    pub password: String,
+}
+
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

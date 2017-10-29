@@ -22,7 +22,7 @@ use super::opdata01;
 use super::{Result, Error, MasterKey, OverviewKey, ItemKey, HmacKey, Uuid, AttachmentIterator};
 use super::attachment::{AttachmentData, Attachment};
 use super::attachment;
-use super::detail::{self, Detail};
+use super::detail::{Detail};
 use super::overview::Overview;
 
 /// These are the kinds of items that 1password knows about
@@ -190,10 +190,13 @@ impl<'a> Item<'a> {
     pub fn detail(&self) -> Result<Detail> {
         let keys = try!(self.item_key());
         let raw = try!(opdata01::decrypt(&self.d[..], keys.encryption(), keys.verification()));
+
         let res = if self.category == Category::Login {
-            Detail::Login(try!(detail::Login::from_slice(&raw)))
+            Detail::Login(serde_json::from_slice(&raw)?)
+        } else if self.category == Category::Password {
+            Detail::Password(serde_json::from_slice(&raw)?)
         } else {
-            Detail::Generic(try!(detail::Generic::from_slice(&raw)))
+            Detail::Generic(serde_json::from_slice(&raw)?)
         };
 
         Ok(res)
