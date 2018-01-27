@@ -42,6 +42,8 @@ pub enum LoginFieldKind {
     Email,
     #[serde(rename = "S")]
     S,
+   #[serde(rename = "R")]
+    Radio,
 }
 
 #[derive(Debug, Deserialize)]
