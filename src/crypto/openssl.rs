@@ -33,7 +33,7 @@ pub fn pbkdf2(pw: &[u8], salt: &[u8], iterations: usize) -> Result<[u8; 64]> {
 }
 
 pub fn hash_sha512(data: &[u8]) -> Result<Vec<u8>> {
-    match hash::hash2(MessageDigest::sha512(), data) {
+    match hash::hash(MessageDigest::sha512(), data) {
         Ok(x) => Ok(x.to_vec()),
         Err(e) => Err(From::from(e)),
     }
@@ -57,7 +57,7 @@ pub fn verify_data(data: &[u8], hmac_key: &[u8]) -> Result<bool> {
     let pkey = try!(PKey::hmac(hmac_key));
     let mut signer = try!(sign::Signer::new(MessageDigest::sha256(), &pkey));
     try!(signer.update(&data[..data.len() - 32]));
-    let computed_hmac = try!(signer.finish());
+    let computed_hmac = try!(signer.sign_to_vec());
 
     Ok(computed_hmac.as_slice() == mac)
 }
@@ -76,7 +76,7 @@ pub fn hmac<F>(key: &HmacKey, cb: F) -> Result<Vec<u8>>
     try!(cb(&mut hmac));
     signer = hmac.signer;
 
-    match signer.finish() {
+    match signer.sign_to_vec() {
         Ok(x) => Ok(x),
         Err(e) => Err(From::from(e)),
     }
