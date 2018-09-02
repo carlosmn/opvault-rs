@@ -10,4 +10,4 @@ serde_derive = "1.0"
 openssl = "0.10"
 byteorder = "1.1"
 base64 = "0.9"
-uuid = { version = "0.5", features = ["use_std", "serde"] }
+uuid = { version = "0.6", features = ["use_std", "serde"] }
