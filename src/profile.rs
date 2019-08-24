@@ -75,7 +75,7 @@ pub fn read_profile(p: &Path) -> Result<Profile> {
     try!(f.read_to_string(&mut s));
     // the file looks like it's meant to be eval'ed by a JS engine, which sounds
     // like a particularly bad idea, let's remove the non-json bits.
-    let json_str = s.trim_left_matches("var profile=").trim_right_matches(';');
+    let json_str = s.trim_start_matches("var profile=").trim_end_matches(';');
     let profile_data: ProfileData = try!(serde_json::from_str(json_str));
 
     Profile::from_profile_data(profile_data)

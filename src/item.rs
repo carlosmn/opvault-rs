@@ -265,7 +265,7 @@ fn read_band(p: &Path, overview: Rc<OverviewKey>) -> Result<HashMap<Uuid, ItemDa
     };
     let mut s = String::new();
     try!(f.read_to_string(&mut s));
-    let json_str = s.trim_left_matches("ld(").trim_right_matches(");");
+    let json_str = s.trim_start_matches("ld(").trim_end_matches(");");
 
     let mut items: HashMap<Uuid, ItemData> = try!(serde_json::from_str(json_str));
     let valid_items = items.drain()

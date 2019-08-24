@@ -66,7 +66,7 @@ pub enum Error {
     OpdataError(OpdataError),
     Crypto(crypto::Error),
     ItemError,
-    UuidError(uuid::ParseError),
+    UuidError(uuid::parser::ParseError),
     OpcldatError,
 }
 
@@ -100,8 +100,8 @@ impl convert::From<OpdataError> for Error {
     }
 }
 
-impl convert::From<uuid::ParseError> for Error {
-    fn from(e: uuid::ParseError) -> Self {
+impl convert::From<uuid::parser::ParseError> for Error {
+    fn from(e: uuid::parser::ParseError) -> Self {
         Error::UuidError(e)
     }
 }
