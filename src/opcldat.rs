@@ -10,7 +10,7 @@ use std::io::prelude::*;
 use super::{Result, Error};
 use byteorder::{LittleEndian, ReadBytesExt};
 
-const OPCLDAT_STR: &'static [u8] = b"OPCLDAT";
+const OPCLDAT_STR: &[u8] = b"OPCLDAT";
 
 #[derive(Debug)]
 pub struct Opcldat {
@@ -23,7 +23,7 @@ pub fn read_header<R: Read>(r: &mut R) -> Result<Opcldat> {
     let mut header = [0u8; 7];
     try!(r.read_exact(&mut header));
 
-    if &header != OPCLDAT_STR {
+    if header != OPCLDAT_STR {
         return Err(Error::OpcldatError);
     }
 
@@ -33,8 +33,8 @@ pub fn read_header<R: Read>(r: &mut R) -> Result<Opcldat> {
     let icon_size = try!(r.read_u32::<LittleEndian>());
 
     Ok(Opcldat {
-        version: version,
-        metadata_size: metadata_size,
-        icon_size: icon_size,
+        version,
+        metadata_size,
+        icon_size,
     })
 }

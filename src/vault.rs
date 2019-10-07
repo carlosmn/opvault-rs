@@ -32,8 +32,8 @@ impl LockedVault {
         let profile = try!(profile::read_profile(&base.join("profile.js")));
 
         Ok(LockedVault {
-            base: base,
-            profile: profile,
+            base,
+            profile,
         })
     }
 
@@ -96,13 +96,13 @@ impl UnlockedVault {
         let items = try!(item::read_items(&base, overview.clone()));
 
         Ok(UnlockedVault {
-            base: base,
-            profile: profile,
-            folders: folders,
-            items: items,
-            attachments: attachments,
-            master: master,
-            overview: overview,
+            base,
+            profile,
+            folders,
+            items,
+            attachments,
+            master,
+            overview,
         })
     }
 

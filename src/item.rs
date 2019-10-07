@@ -177,12 +177,12 @@ impl<'a> Item<'a> {
             o: try!(base64::decode(&d.o)),
             tx: d.tx,
             updated: d.updated,
-            uuid: uuid,
+            uuid,
             fave: d.fave,
-            attachments: attachments,
-            atts: atts,
-            master: master,
-            overview: overview,
+            attachments,
+            atts,
+            master,
+            overview,
         })
     }
 
@@ -242,7 +242,7 @@ impl<'a> Item<'a> {
     }
 }
 
-static BANDS: &'static [u8; 16] = b"0123456789ABCDEF";
+static BANDS: &[u8; 16] = b"0123456789ABCDEF";
 
 // Load the items given the containing path
 pub fn read_items(p: &Path, overview: Rc<OverviewKey>) -> Result<HashMap<Uuid, ItemData>> {

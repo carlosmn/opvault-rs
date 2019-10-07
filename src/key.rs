@@ -34,7 +34,7 @@ impl Key {
 impl From<Vec<u8>> for Key {
     fn from(v: Vec<u8>) -> Self {
         Key {
-            v: v,
+            v,
         }
     }
 }
@@ -57,7 +57,7 @@ impl From<Vec<u8>> for MasterKey {
     fn from(v: Vec<u8>) -> Self {
         Self {
             key: Key {
-                v: v,
+                v,
             }
         }
     }
@@ -81,7 +81,7 @@ impl From<Vec<u8>> for OverviewKey {
     fn from(v: Vec<u8>) -> Self {
         Self {
             key: Key {
-                v: v,
+                v,
             }
         }
     }
@@ -105,7 +105,7 @@ impl From<Vec<u8>> for ItemKey {
     fn from(v: Vec<u8>) -> Self {
         Self {
             key: Key {
-                v: v,
+                v,
             }
         }
     }

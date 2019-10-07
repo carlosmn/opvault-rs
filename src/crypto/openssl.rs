@@ -72,7 +72,7 @@ pub fn hmac<F>(key: &HmacKey, cb: F) -> Result<Vec<u8>>
     let mut signer = Box::new(try!(sign::Signer::new(MessageDigest::sha256(), &pkey)));
 
     // Move the value into and out of HMAC so the borrow checker is happy with us.
-    let mut hmac = HMAC { signer: signer };
+    let mut hmac = HMAC { signer };
     try!(cb(&mut hmac));
     signer = hmac.signer;
 
@@ -85,7 +85,7 @@ pub fn hmac<F>(key: &HmacKey, cb: F) -> Result<Vec<u8>>
 impl<'b> HMAC<'b> {
     pub fn update(&mut self, data: &[u8]) -> Result<()> {
         match self.signer.update(data) {
-            Ok(x) => Ok(x),
+            Ok(_) => Ok(()),
             Err(e) => Err(From::from(e)),
         }
     }

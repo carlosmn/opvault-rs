@@ -53,7 +53,7 @@ impl Folder {
             updated: d.updated,
             uuid: d.uuid,
             smart: d.smart,
-            overview_key: overview_key,
+            overview_key,
         })
     }
 

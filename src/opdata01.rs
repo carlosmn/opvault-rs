@@ -15,7 +15,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use crypto::{verify_data, decrypt_data};
 
 /// The header for this kind of data
-static OPDATA_STR: &'static [u8; 8] = b"opdata01";
+static OPDATA_STR: &[u8; 8] = b"opdata01";
 
 #[derive(Debug)]
 pub enum OpdataError {
