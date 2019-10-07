@@ -92,13 +92,13 @@ pub struct ItemData {
 }
 
 macro_rules! update {
-    ($s: expr, $name:expr, $field:expr) => {
-        try!($s.update($name.as_bytes()));
+    ($s: expr, $name:literal, $field:expr) => {
+        try!($s.update($name));
         try!($s.update($field.to_string().as_bytes()));
     };
-    (option, $s: expr, $name:expr, $field:expr) => {
+    (option, $s: expr, $name:literal, $field:expr) => {
         if let Some(ref x) = $field {
-            try!($s.update($name.as_bytes()));
+            try!($s.update($name));
             try!($s.update(x.to_string().as_bytes()));
         }
     };
@@ -110,19 +110,19 @@ impl ItemData {
         let actual_hmac = try!(hmac(key, |signer| {
             // This is far from optimal, but we need idents and strings here so any
             // option is bound to lead to some duplication.
-            update!(signer, "category", self.category);
-            update!(signer, "created", self.created);
-            update!(signer, "d", self.d);
-            update!(option, signer, "fave", self.fave);
-            update!(option, signer, "folder", self.folder);
-            update!(signer, "k", self.k);
-            update!(signer, "o", self.o);
+            update!(signer, b"category", self.category);
+            update!(signer, b"created", self.created);
+            update!(signer, b"d", self.d);
+            update!(option, signer, b"fave", self.fave);
+            update!(option, signer, b"folder", self.folder);
+            update!(signer, b"k", self.k);
+            update!(signer, b"o", self.o);
             // Although this is boolean in the JSON, the HMAC is calculated with
             // this as an integer.
-            update!(option, signer, "trashed", self.trashed.map(|x| x as i32));
-            update!(signer, "tx", self.tx);
-            update!(signer, "updated", self.updated);
-            update!(signer, "uuid", self.uuid);
+            update!(option, signer, b"trashed", self.trashed.map(|x| x as i32));
+            update!(signer, b"tx", self.tx);
+            update!(signer, b"updated", self.updated);
+            update!(signer, b"uuid", self.uuid);
             Ok(())
         }));
 
