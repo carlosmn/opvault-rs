@@ -105,13 +105,11 @@ pub fn read_attachments(p: &Path) -> Result<HashMap<Uuid, (AttachmentData, PathB
     let mut map = HashMap::new();
     for entry in fs::read_dir(p)? {
         let entry = entry?;
-        let file_type = entry.file_type()?;
-        if file_type.is_dir() {
+        if entry.file_type()?.is_dir() {
             continue;
         }
 
-        let filename = entry.file_name();
-        if let Some(name) = filename.to_str() {
+        if let Some(name) = entry.file_name().to_str() {
             if name.ends_with(".attachment") {
                 let (attachment, path) = read_attachment(&entry.path())?;
                 map.insert(attachment.uuid, (attachment, path));
