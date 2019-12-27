@@ -27,7 +27,7 @@ impl From<ErrorStack> for super::super::Error {
 
 pub fn pbkdf2(pw: &[u8], salt: &[u8], iterations: usize) -> Result<[u8; 64]> {
     let mut derived = [0u8; 64];
-    try!(pbkdf2_hmac(pw, salt, iterations, MessageDigest::sha512(), &mut derived));
+    pbkdf2_hmac(pw, salt, iterations, MessageDigest::sha512(), &mut derived)?;
 
     Ok(derived)
 }
@@ -42,11 +42,11 @@ pub fn hash_sha512(data: &[u8]) -> Result<Vec<u8>> {
 
 pub fn decrypt_data(data: &[u8], decrypt_key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
     let t = symm::Cipher::aes_256_cbc();
-    let mut crypter = try!(symm::Crypter::new(t, symm::Mode::Decrypt, decrypt_key, Some(iv)));
+    let mut crypter = symm::Crypter::new(t, symm::Mode::Decrypt, decrypt_key, Some(iv))?;
     crypter.pad(false);
     let mut decrypted = vec![0u8; data.len()+ t.block_size()];
-    let count = try!(crypter.update(data, &mut decrypted[..]));
-    let rest = try!(crypter.finalize(&mut decrypted[count..]));
+    let count = crypter.update(data, &mut decrypted[..])?;
+    let rest = crypter.finalize(&mut decrypted[count..])?;
 
     decrypted.truncate(count + rest);
     Ok(decrypted)
@@ -54,10 +54,10 @@ pub fn decrypt_data(data: &[u8], decrypt_key: &[u8], iv: &[u8]) -> Result<Vec<u8
 
 pub fn verify_data(data: &[u8], hmac_key: &[u8]) -> Result<bool> {
     let mac = &data[data.len() - 32..];
-    let pkey = try!(PKey::hmac(hmac_key));
-    let mut signer = try!(sign::Signer::new(MessageDigest::sha256(), &pkey));
-    try!(signer.update(&data[..data.len() - 32]));
-    let computed_hmac = try!(signer.sign_to_vec());
+    let pkey = PKey::hmac(hmac_key)?;
+    let mut signer = sign::Signer::new(MessageDigest::sha256(), &pkey)?;
+    signer.update(&data[..data.len() - 32])?;
+    let computed_hmac = signer.sign_to_vec()?;
 
     Ok(computed_hmac.as_slice() == mac)
 }
@@ -68,12 +68,12 @@ pub struct HMAC<'b> {
 
 pub fn hmac<F>(key: &HmacKey, cb: F) -> Result<Vec<u8>>
     where F: Fn(&mut HMAC) -> Result<()> {
-    let pkey = try!(PKey::hmac(key));
-    let mut signer = Box::new(try!(sign::Signer::new(MessageDigest::sha256(), &pkey)));
+    let pkey = PKey::hmac(key)?;
+    let mut signer = Box::new(sign::Signer::new(MessageDigest::sha256(), &pkey)?);
 
     // Move the value into and out of HMAC so the borrow checker is happy with us.
     let mut hmac = HMAC { signer };
-    try!(cb(&mut hmac));
+    cb(&mut hmac)?;
     signer = hmac.signer;
 
     match signer.sign_to_vec() {

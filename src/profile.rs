@@ -48,9 +48,9 @@ pub struct Profile {
 
 impl Profile {
     fn from_profile_data(d: ProfileData) -> Result<Profile> {
-        let salt = try!(base64::decode(&d.salt));
-        let master_key = try!(base64::decode(&d.masterKey));
-        let overview_key = try!(base64::decode(&d.overviewKey));
+        let salt = base64::decode(&d.salt)?;
+        let master_key = base64::decode(&d.masterKey)?;
+        let overview_key = base64::decode(&d.overviewKey)?;
 
         Ok(Profile {
             last_updated_by: d.lastUpdatedBy,
@@ -70,13 +70,13 @@ impl Profile {
 
 // Read in the profile. If the user's master password is given, we also decrypt the master and overview keys
 pub fn read_profile(p: &Path) -> Result<Profile> {
-    let mut f = try!(File::open(p));
+    let mut f = File::open(p)?;
     let mut s = String::new();
-    try!(f.read_to_string(&mut s));
+    f.read_to_string(&mut s)?;
     // the file looks like it's meant to be eval'ed by a JS engine, which sounds
     // like a particularly bad idea, let's remove the non-json bits.
     let json_str = s.trim_start_matches("var profile=").trim_end_matches(';');
-    let profile_data: ProfileData = try!(serde_json::from_str(json_str));
+    let profile_data: ProfileData = serde_json::from_str(json_str)?;
 
     Profile::from_profile_data(profile_data)
 }

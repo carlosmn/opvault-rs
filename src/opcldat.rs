@@ -21,16 +21,16 @@ pub struct Opcldat {
 
 pub fn read_header<R: Read>(r: &mut R) -> Result<Opcldat> {
     let mut header = [0u8; 7];
-    try!(r.read_exact(&mut header));
+    r.read_exact(&mut header)?;
 
     if header != OPCLDAT_STR {
         return Err(Error::OpcldatError);
     }
 
-    let version = try!(r.read_u8());
-    let metadata_size = try!(r.read_u16::<LittleEndian>());
-    let _junk = try!(r.read_u16::<LittleEndian>());
-    let icon_size = try!(r.read_u32::<LittleEndian>());
+    let version = r.read_u8()?;
+    let metadata_size = r.read_u16::<LittleEndian>()?;
+    let _junk = r.read_u16::<LittleEndian>()?;
+    let icon_size = r.read_u32::<LittleEndian>()?;
 
     Ok(Opcldat {
         version,

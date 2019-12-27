@@ -27,24 +27,24 @@ pub fn decrypt(data: &[u8], decrypt_key: &[u8], mac_key: &[u8]) -> Result<Vec<u8
     let mut cursor = Cursor::new(data);
 
     // The first step is to hash the data (minus the MAC itself)
-    if !try!(verify_data(data, mac_key)) {
+    if !verify_data(data, mac_key)? {
         return Err(super::Error::OpdataError(OpdataError::InvalidHmac));
     }
 
     // The data is intact, let's see whether it's well formed now and decrypt
     let mut header = [0u8; 8];
-    try!(cursor.read_exact(&mut header));
+    cursor.read_exact(&mut header)?;
 
     if &header != OPDATA_STR {
         return Err(From::from(OpdataError::InvalidHeader));
     }
 
-    let len = try!(cursor.read_u64::<LittleEndian>());
+    let len = cursor.read_u64::<LittleEndian>()?;
     let iv = &data[16..32];
 
     let crypt_data = &data[32..data.len()-32];
 
-    let decrypted = try!(decrypt_data(crypt_data, decrypt_key, iv));
+    let decrypted = decrypt_data(crypt_data, decrypt_key, iv)?;
     let unpadded: Vec<u8> = decrypted[crypt_data.len()-(len as usize)..].into();
 
     Ok(unpadded)

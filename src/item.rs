@@ -93,13 +93,13 @@ pub struct ItemData {
 
 macro_rules! update {
     ($s: expr, $name:literal, $field:expr) => {
-        try!($s.update($name));
-        try!($s.update($field.to_string().as_bytes()));
+        $s.update($name)?;
+        $s.update($field.to_string().as_bytes())?;
     };
     (option, $s: expr, $name:literal, $field:expr) => {
         if let Some(ref x) = $field {
-            try!($s.update($name));
-            try!($s.update(x.to_string().as_bytes()));
+            $s.update($name)?;
+            $s.update(x.to_string().as_bytes())?;
         }
     };
 }
@@ -107,7 +107,7 @@ macro_rules! update {
 impl ItemData {
     /// Create from the json structure, verifying the integrity of the data given the master hmac key
     fn verify(&self, key: &HmacKey) -> Result<bool> {
-        let actual_hmac = try!(hmac(key, |signer| {
+        let actual_hmac = hmac(key, |signer| {
             // This is far from optimal, but we need idents and strings here so any
             // option is bound to lead to some duplication.
             update!(signer, b"category", self.category);
@@ -124,9 +124,9 @@ impl ItemData {
             update!(signer, b"updated", self.updated);
             update!(signer, b"uuid", self.uuid);
             Ok(())
-        }));
+        })?;
 
-        let expected_hmac = try!(base64::decode(&self.hmac));
+        let expected_hmac = base64::decode(&self.hmac)?;
 
         Ok(expected_hmac == actual_hmac)
     }
@@ -155,9 +155,9 @@ pub struct Item<'a> {
 
 impl<'a> Item<'a> {
     fn from_item_data(d: &ItemData, atts: &'a HashMap<Uuid, (AttachmentData, PathBuf)>, master: Rc<MasterKey>, overview: Rc<OverviewKey>) -> Result<Item<'a>> {
-        let uuid = try!(Uuid::parse_str(&d.uuid));
+        let uuid = Uuid::parse_str(&d.uuid)?;
         let folder_uuid = if let Some(ref id) = d.folder {
-            Some(try!(Uuid::parse_str(id)))
+            Some(Uuid::parse_str(id)?)
         } else {
             None
         };
@@ -168,13 +168,13 @@ impl<'a> Item<'a> {
             .collect();
 
         Ok(Item {
-            category: try!(Category::from_str(&d.category)),
+            category: Category::from_str(&d.category)?,
             created: d.created,
-            d: try!(base64::decode(&d.d)),
+            d: base64::decode(&d.d)?,
             folder: folder_uuid,
-            hmac: try!(base64::decode(&d.hmac)),
-            k: try!(base64::decode(&d.k)),
-            o: try!(base64::decode(&d.o)),
+            hmac: base64::decode(&d.hmac)?,
+            k: base64::decode(&d.k)?,
+            o: base64::decode(&d.o)?,
             tx: d.tx,
             updated: d.updated,
             uuid,
@@ -188,8 +188,8 @@ impl<'a> Item<'a> {
 
     /// Decrypt this item's details
     pub fn detail(&self) -> Result<Detail> {
-        let keys = try!(self.item_key());
-        let raw = try!(opdata01::decrypt(&self.d[..], keys.encryption(), keys.verification()));
+        let keys = self.item_key()?;
+        let raw = opdata01::decrypt(&self.d[..], keys.encryption(), keys.verification())?;
 
         let res = if self.category == Category::Login {
             Detail::Login(serde_json::from_slice(&raw)?)
@@ -205,18 +205,18 @@ impl<'a> Item<'a> {
     /// Decrypt the item's overview
     pub fn overview(&self) -> Result<Overview> {
         let raw = opdata01::decrypt(&self.o[..], self.overview.encryption(), self.overview.verification())?;
-        let res = try!(Overview::from_slice(&raw));
+        let res = Overview::from_slice(&raw)?;
 
         Ok(res)
     }
 
     fn item_key(&self) -> Result<ItemKey> {
-        if !try!(verify_data(&self.k[..], self.master.verification())) {
+        if !verify_data(&self.k[..], self.master.verification())? {
             return Err(Error::ItemError);
         }
 
         let iv = &self.k[..16];
-        let keys = try!(decrypt_data(&self.k[16..], self.master.encryption(), iv));
+        let keys = decrypt_data(&self.k[16..], self.master.encryption(), iv)?;
 
         Ok(keys.into())
     }
@@ -232,7 +232,7 @@ impl<'a> Item<'a> {
     }
 
     pub fn get_attachments(&'a self) -> Result<AttachmentIterator<'a>> {
-        let key = try!(self.item_key());
+        let key = self.item_key()?;
         Ok(AttachmentIterator {
             inner: self.attachments.iter(),
             atts: self.atts,
@@ -250,7 +250,7 @@ pub fn read_items(p: &Path, overview: Rc<OverviewKey>) -> Result<HashMap<Uuid, I
     for x in BANDS.iter() {
         let name = format!("band_{}.js", *x as char);
         let path = p.join(name);
-        let items = try!(read_band(&path, overview.clone()));
+        let items = read_band(&path, overview.clone())?;
         map.extend(items);
     }
 
@@ -264,10 +264,10 @@ fn read_band(p: &Path, overview: Rc<OverviewKey>) -> Result<HashMap<Uuid, ItemDa
         Ok(x) => x,
     };
     let mut s = String::new();
-    try!(f.read_to_string(&mut s));
+    f.read_to_string(&mut s)?;
     let json_str = s.trim_start_matches("ld(").trim_end_matches(");");
 
-    let mut items: HashMap<Uuid, ItemData> = try!(serde_json::from_str(json_str));
+    let mut items: HashMap<Uuid, ItemData> = serde_json::from_str(json_str)?;
     let valid_items = items.drain()
         .filter(|&(_, ref i)| i.verify(overview.verification()).ok() == Some(true))
         .collect();

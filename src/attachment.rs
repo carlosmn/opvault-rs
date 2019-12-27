@@ -48,7 +48,7 @@ pub struct Attachment {
 
 impl Attachment {
     fn from_attachment_data(d: &AttachmentData, p: PathBuf, key: Rc<ItemKey>, overview_key: Rc<OverviewKey>) -> Result<Attachment> {
-        let overview = try!(base64::decode(&d.overview));
+        let overview = base64::decode(&d.overview)?;
 
         Ok(Attachment {
             item: d.itemUUID,
@@ -74,14 +74,14 @@ impl Attachment {
     pub fn decrypt_icon(&self) -> Result<Vec<u8>> {
         // The content is just after the metadata, so we need to open the file
         // again and figure out where things are.
-        let mut f = try!(fs::File::open(&self.path));
-        let metadata = try!(opcldat::read_header(&mut f));
+        let mut f = fs::File::open(&self.path)?;
+        let metadata = opcldat::read_header(&mut f)?;
 
         let icon_offset = 16 /* header */ + metadata.metadata_size;
 
         let mut icon_data = vec![0u8; metadata.icon_size as usize];
-        try!(f.seek(SeekFrom::Start(u64::from(icon_offset))));
-        try!(f.read_exact(&mut icon_data));
+        f.seek(SeekFrom::Start(u64::from(icon_offset)))?;
+        f.read_exact(&mut icon_data)?;
         opdata01::decrypt(&icon_data[..], self.key.encryption(), self.key.verification())
     }
 
@@ -89,23 +89,23 @@ impl Attachment {
     pub fn decrypt_content(&self) -> Result<Vec<u8>> {
         // The content is just after the metadata, so we need to open the file
         // again and figure out where things are.
-        let mut f = try!(fs::File::open(&self.path));
-        let metadata = try!(opcldat::read_header(&mut f));
+        let mut f = fs::File::open(&self.path)?;
+        let metadata = opcldat::read_header(&mut f)?;
 
         let content_offset = 16 /* header */ + (metadata.metadata_size as usize) + (metadata.icon_size) as usize;
 
         let mut content_data = Vec::new();
-        try!(f.seek(SeekFrom::Start(content_offset as u64)));
-        try!(f.read_to_end(&mut content_data));
+        f.seek(SeekFrom::Start(content_offset as u64))?;
+        f.read_to_end(&mut content_data)?;
         opdata01::decrypt(&content_data[..], self.key.encryption(), self.key.verification())
     }
 }
 
 pub fn read_attachments(p: &Path) -> Result<HashMap<Uuid, (AttachmentData, PathBuf)>> {
     let mut map = HashMap::new();
-    for entry in try!(fs::read_dir(p)) {
-        let entry = try!(entry);
-        let file_type = try!(entry.file_type());
+    for entry in fs::read_dir(p)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
         if file_type.is_dir() {
             continue;
         }
@@ -113,7 +113,7 @@ pub fn read_attachments(p: &Path) -> Result<HashMap<Uuid, (AttachmentData, PathB
         let filename = entry.file_name();
         if let Some(name) = filename.to_str() {
             if name.ends_with(".attachment") {
-                let (attachment, path) = try!(read_attachment(&entry.path()));
+                let (attachment, path) = read_attachment(&entry.path())?;
                 map.insert(attachment.uuid, (attachment, path));
             }
         }
@@ -123,13 +123,13 @@ pub fn read_attachments(p: &Path) -> Result<HashMap<Uuid, (AttachmentData, PathB
 }
 
 pub fn read_attachment(p: &Path) -> Result<(AttachmentData, PathBuf)> {
-    let mut f = try!(fs::File::open(p));
+    let mut f = fs::File::open(p)?;
 
-    let metadata = try!(opcldat::read_header(&mut f));
+    let metadata = opcldat::read_header(&mut f)?;
     let mut json_data = vec![0u8; metadata.metadata_size as usize];
-    try!(f.read_exact(&mut json_data));
-    let json_str = try!(String::from_utf8(json_data));
-    let data = try!(serde_json::from_str(&json_str));
+    f.read_exact(&mut json_data)?;
+    let json_str = String::from_utf8(json_data)?;
+    let data = serde_json::from_str(&json_str)?;
 
     Ok((data, p.to_path_buf()))
 }
