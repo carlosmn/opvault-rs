@@ -126,8 +126,7 @@ pub fn read_attachment(p: &Path) -> Result<(AttachmentData, PathBuf)> {
     let metadata = opcldat::read_header(&mut f)?;
     let mut json_data = vec![0u8; metadata.metadata_size as usize];
     f.read_exact(&mut json_data)?;
-    let json_str = String::from_utf8(json_data)?;
-    let data = serde_json::from_str(&json_str)?;
+    let data = serde_json::from_slice(&json_data)?;
 
     Ok((data, p.to_path_buf()))
 }
