@@ -152,5 +152,5 @@ impl<'a> Iterator for AttachmentIterator<'a> {
 }
 
 pub fn from_data(attachment: &AttachmentData, p: PathBuf, key: Rc<ItemKey>, overview_key: Rc<OverviewKey>) -> Result<Attachment> {
-    Attachment::from_attachment_data(attachment, p.clone(), key, overview_key)
+    Attachment::from_attachment_data(attachment, p, key, overview_key)
 }
